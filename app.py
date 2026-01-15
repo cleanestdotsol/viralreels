@@ -129,7 +129,7 @@ def post_scheduled_videos():
             JOIN api_keys ak ON sp.user_id = ak.user_id
             JOIN users u ON sp.user_id = u.id
             WHERE sp.status = 'pending'
-            AND sp.scheduled_time <= datetime('now')
+            AND sp.scheduled_time <= CURRENT_TIMESTAMP
             ORDER BY sp.scheduled_time ASC
         ''').fetchall()
 
@@ -1757,15 +1757,10 @@ def generate_scripts_claude(api_key, prompt_text):
             max_tokens=4000,
             messages=[{"role": "user", "content": prompt_text}]
         )
-        
+
         response_text = message.content[0].text
-        start = response_text.find('[')
-        end = response_text.rfind(']') + 1
-        
-        if start != -1 and end > start:
-            return json.loads(response_text[start:end])
-        
-        return []
+        return extract_json_safely(response_text)
+
     except Exception as e:
         print(f"Claude error: {e}")
         return []
@@ -1790,13 +1785,7 @@ def generate_scripts_openrouter(api_key, prompt_text):
         if response.status_code == 200:
             result = response.json()
             response_text = result['choices'][0]['message']['content']
-
-            # Extract JSON
-            start = response_text.find('[')
-            end = response_text.rfind(']') + 1
-
-            if start != -1 and end > start:
-                return json.loads(response_text[start:end])
+            return extract_json_safely(response_text)
 
         return []
     except Exception as e:
@@ -1855,6 +1844,81 @@ def generate_glm_token(api_key):
         print(f"[ERROR] Token generation failed: {e}")
         return None
 
+def extract_json_safely(response_text):
+    """
+    Extract JSON array from API response with multiple fallback strategies.
+    Handles GLM API's malformed responses with unescaped quotes.
+    """
+    import re
+    import json
+
+    # Strategy 1: Try direct JSON parse (clean response)
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2: Extract using bracket markers (original method)
+    start = response_text.find('[')
+    end = response_text.rfind(']') + 1
+    if start != -1 and end > start:
+        try:
+            return json.loads(response_text[start:end])
+        except json.JSONDecodeError:
+            pass
+
+    # Strategy 3: Use regex to find JSON array
+    json_match = re.search(r'\[\s*\{.*?\}\s*\]', response_text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group())
+        except json.JSONDecodeError:
+            pass
+
+    # Strategy 4: Try to fix common JSON issues (unescaped quotes)
+    try:
+        # Find JSON boundaries
+        start = response_text.find('[')
+        end = response_text.rfind(']') + 1
+
+        if start != -1 and end > start:
+            json_str = response_text[start:end]
+
+            # Fix common unescaped quote issues in string values
+            # This pattern fixes quotes that should be escaped in JSON strings
+            # by looking for patterns like "field": "value with "quote" in it"
+            fixed_json = re.sub(
+                r':\s*\"([^\"]*?)\"(?=\s*[,}])',
+                lambda m: ': "' + m.group(1).replace('"', '\\"') + '"',
+                json_str
+            )
+
+            return json.loads(fixed_json)
+    except Exception:
+        pass
+
+    # Strategy 5: Try to find and parse individual JSON objects
+    try:
+        # Find all {...} blocks that might be script objects
+        objects = re.findall(r'\{[^{}]*"topic"[^{}]*\}', response_text, re.DOTALL)
+        if objects:
+            scripts = []
+            for obj_str in objects:
+                try:
+                    obj = json.loads(obj_str)
+                    if 'topic' in obj and 'hook' in obj:
+                        scripts.append(obj)
+                except json.JSONDecodeError:
+                    continue
+            if scripts:
+                return scripts
+    except Exception:
+        pass
+
+    # All strategies failed
+    print("[WARNING] Could not extract valid JSON from response")
+    return []
+
 def safe_print(text):
     """Safely print text that might contain non-ASCII characters"""
     try:
@@ -1911,12 +1975,8 @@ def generate_scripts_glm(api_key, prompt_text):
 
             print(f"[DEBUG] Response length: {len(response_text)} chars")
 
-            # Extract JSON
-            start = response_text.find('[')
-            end = response_text.rfind(']') + 1
-
-            if start != -1 and end > start:
-                return json.loads(response_text[start:end])
+            # Extract JSON using robust multi-strategy parser
+            return extract_json_safely(response_text)
         else:
             print(f"[ERROR] GLM API error {response.status_code} - See debug.log")
 
