@@ -578,7 +578,27 @@ def process_script_generation_job(job_id):
         else:
             # Fallback default prompt
             num_scripts = 5
-            prompt_text = f"""Generate {num_scripts} viral Facebook Reels scripts in valid JSON format..."""
+            prompt_text = f"""Generate {num_scripts} viral Facebook Reels scripts in valid JSON format.
+
+**IMPORTANT: Return ONLY this JSON structure:**
+[
+  {{
+    "topic": "Topic Name",
+    "hook": "Opening hook (10-15 words)",
+    "fact1": "First fascinating fact",
+    "fact2": "Second fact",
+    "fact3": "Third fact",
+    "fact4": "Fourth fact",
+    "payoff": "Mind-blowing conclusion with emoji",
+    "viral_score": 0.85
+  }}
+]
+
+Each script MUST have ALL 8 fields: topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score.
+NO extra text, NO markdown formatting, just the JSON array."""
+
+        print(f"[DEBUG] Sending prompt to GLM ({len(prompt_text)} chars)")
+        print(f"[DEBUG] Prompt preview: {prompt_text[:500]}...")
 
         # Call appropriate AI provider
         scripts = []
