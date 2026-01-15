@@ -1898,10 +1898,10 @@ def activate_prompt(prompt_id):
         return redirect(url_for('prompts'))
     
     # Deactivate all other prompts
-    conn.execute('UPDATE prompts SET is_active = 0 WHERE user_id = ?', (session['user_id'],))
-    
+    conn.execute('UPDATE prompts SET is_active = False WHERE user_id = ?', (session['user_id'],))
+
     # Activate this one
-    conn.execute('UPDATE prompts SET is_active = 1 WHERE id = ?', (prompt_id,))
+    conn.execute('UPDATE prompts SET is_active = True WHERE id = ?', (prompt_id,))
     
     conn.commit()
     conn.close()
@@ -1983,7 +1983,7 @@ def select_scripts():
     
     # Mark scripts as selected
     for script_id in script_ids:
-        conn.execute('UPDATE scripts SET selected = 1 WHERE id = ? AND user_id = ?',
+        conn.execute('UPDATE scripts SET selected = True WHERE id = ? AND user_id = ?',
                     (script_id, session['user_id']))
     
     conn.commit()
@@ -2112,7 +2112,7 @@ def generate_video(script_id):
             ''', (session['user_id'],))
 
             # Unselect script
-            conn.execute('UPDATE scripts SET selected = 0 WHERE id = ?', (script_id,))
+            conn.execute('UPDATE scripts SET selected = False WHERE id = ?', (script_id,))
 
             conn.commit()
 
