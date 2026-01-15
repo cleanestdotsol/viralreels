@@ -54,3 +54,5 @@ railway/
 *.bak
 *.backup
 nul
+tmpclaude*
+videos/
