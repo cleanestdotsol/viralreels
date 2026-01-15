@@ -3501,29 +3501,39 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                 if section_audio and os.path.exists(section_audio):
                     # With audio - use audio duration + padding
+                    # Memory-optimized settings for Railway container
                     cmd = [
                         'ffmpeg',
                         '-f', 'lavfi',
-                        '-i', f'color=c=black:s=1080x1920:d={slide_duration}:r=30',
+                        '-i', f'color=c=black:s=720x1280:d={slide_duration}:r=24',
                         '-i', section_audio,
-                        '-vf', f"ass='{slide_ass_abs}'",
+                        '-vf', f"ass='{slide_ass_abs}',scale=720:1280",
                         '-c:v', 'libx264',
+                        '-preset', 'ultrafast',
+                        '-crf', '28',
+                        '-b:v', '800k',
+                        '-maxrate', '1000k',
+                        '-bufsize', '1600k',
                         '-c:a', 'aac',
-                        '-preset', 'fast',
+                        '-b:a', '128k',
                         '-pix_fmt', 'yuv420p',
                         '-shortest',
                         '-y',
                         slide_video_path
                     ]
                 else:
-                    # Without audio
+                    # Without audio - memory optimized
                     cmd = [
                         'ffmpeg',
                         '-f', 'lavfi',
-                        '-i', f'color=c=black:s=1080x1920:d={slide_duration}:r=30',
-                        '-vf', f"ass='{slide_ass_abs}'",
+                        '-i', f'color=c=black:s=720x1280:d={slide_duration}:r=24',
+                        '-vf', f"ass='{slide_ass_abs}',scale=720:1280",
                         '-c:v', 'libx264',
-                        '-preset', 'fast',
+                        '-preset', 'ultrafast',
+                        '-crf', '28',
+                        '-b:v', '800k',
+                        '-maxrate', '1000k',
+                        '-bufsize', '1600k',
                         '-pix_fmt', 'yuv420p',
                         '-y',
                         slide_video_path
