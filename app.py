@@ -18,6 +18,9 @@ import anthropic
 import requests
 import subprocess
 import secrets
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import urllib.parse
 import time
 import hmac
 import hashlib
@@ -39,8 +42,24 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)  # Random secret key for sessions
-app.config['DATABASE'] = 'viral_reels.db'
 app.config['UPLOAD_FOLDER'] = 'videos'
+
+# ============================================================================
+# DATABASE CONFIGURATION - Support both SQLite and PostgreSQL
+# ============================================================================
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    # Railway PostgreSQL database
+    app.config['DATABASE_TYPE'] = 'postgresql'
+    app.config['DATABASE_URL'] = DATABASE_URL
+    print("[OK] Using PostgreSQL database (Railway)")
+else:
+    # Local SQLite database
+    app.config['DATABASE_TYPE'] = 'sqlite'
+    app.config['DATABASE'] = 'viral_reels.db'
+    print("[OK] Using SQLite database (local)")
+
 
 # ============================================================================
 # INITIALIZATION FOR RAILWAY/PRODUCTION
@@ -629,20 +648,33 @@ def init_db():
 # INITIALIZATION FOR RAILWAY/PRODUCTION
 # ============================================================================
 # Initialize database on module load (after init_db function is defined)
-if not os.path.exists(app.config['DATABASE']):
-    print("[OK] Database not found, initializing...")
-    init_db()
-    print("[OK] Database initialized successfully!")
+if app.config['DATABASE_TYPE'] == 'sqlite':
+    if not os.path.exists(app.config['DATABASE']):
+        print("[OK] Database not found, initializing...")
+        init_db()
+        print("[OK] Database initialized successfully!")
+    else:
+        print("[OK] Database exists, ready to run")
 else:
-    print("[OK] Database exists, ready to run")
+    # PostgreSQL - initialize tables (won't hurt if they exist)
+    print("[OK] PostgreSQL detected, ensuring tables exist...")
+    try:
+        init_db()
+        print("[OK] PostgreSQL tables ready")
+    except Exception as e:
+        print(f"[INFO] Tables may already exist: {e}")
 
 # ============================================================================
 
 def get_db():
-    """Get database connection"""
-    conn = sqlite3.connect(app.config['DATABASE'])
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get database connection (SQLite or PostgreSQL)"""
+    if app.config['DATABASE_TYPE'] == 'postgresql':
+        conn = psycopg2.connect(app.config['DATABASE_URL'], cursor_factory=RealDictCursor)
+        return conn
+    else:
+        conn = sqlite3.connect(app.config['DATABASE'])
+        conn.row_factory = sqlite3.Row
+        return conn
 
 # ============================================================================
 # AUTHENTICATION DECORATORS
