@@ -1981,8 +1981,67 @@ def extract_json_safely(response_text):
     except Exception:
         pass
 
+    # Strategy 6: Extract from markdown code blocks (```json ... ```)
+    try:
+        import re
+        # Match markdown code blocks with json or js
+        json_block_match = re.search(r'```(?:json|js)?\s*\n?([\s\S]*?)\n?```', response_text)
+        if json_block_match:
+            block_content = json_block_match.group(1).strip()
+            print(f"[INFO] Strategy 6 found markdown code block, length: {len(block_content)}")
+
+            # Try to parse the extracted block
+            scripts = json.loads(block_content)
+            if isinstance(scripts, list):
+                validated = [s for s in (validate_script_fields(s) for s in scripts) if s is not None]
+                if validated:
+                    print(f"[INFO] Strategy 6 extracted {len(validated)} valid scripts from markdown")
+                    return validated
+    except Exception as e:
+        print(f"[DEBUG] Strategy 6 failed: {e}")
+
+    # All strategies failed - try best-effort extraction without strict validation
+    print("[WARNING] All strict strategies failed, trying best-effort extraction...")
+    try:
+        # Try to parse ANY JSON objects and fill in missing fields
+        import re
+
+        # Find all potential JSON objects
+        all_objects = re.findall(r'\{[^{}]*(?:"topic"|"hook"|"fact")[^{}]*\}', response_text, re.DOTALL)
+
+        if all_objects:
+            scripts = []
+            for obj_str in all_objects:
+                try:
+                    # Try to parse as JSON
+                    obj = json.loads(obj_str)
+
+                    # Fill in missing fields with defaults
+                    defaults = {
+                        'topic': 'Unknown Topic',
+                        'hook': 'Did you know...?',
+                        'fact1': '',
+                        'fact2': '',
+                        'fact3': '',
+                        'fact4': '',
+                        'payoff': 'Mind blown! 🤯',
+                        'viral_score': 0.5
+                    }
+
+                    # Merge with actual values
+                    defaults.update(obj)
+                    scripts.append(defaults)
+                except:
+                    continue
+
+            if scripts:
+                print(f"[INFO] Best-effort extraction recovered {len(scripts)} scripts")
+                return scripts
+    except Exception as e:
+        print(f"[DEBUG] Best-effort extraction failed: {e}")
+
     # All strategies failed
-    print("[WARNING] Could not extract valid JSON from response")
+    print("[ERROR] Could not extract valid JSON from response")
     return []
 
 def safe_print(text):
@@ -2040,9 +2099,20 @@ def generate_scripts_glm(api_key, prompt_text):
             response_text = result['choices'][0]['message']['content']
 
             print(f"[DEBUG] Response length: {len(response_text)} chars")
+            print(f"[DEBUG] First 200 chars: {response_text[:200]}")
+
+            # Write the extracted content for debugging
+            with open('debug.log', 'a', encoding='utf-8') as f:
+                f.write(f"\n\n=== EXTRACTED CONTENT ===\n")
+                f.write(f"Length: {len(response_text)} chars\n")
+                f.write(f"First 500 chars: {response_text[:500]}\n")
+                f.write(f"Last 500 chars: {response_text[-500:]}\n")
 
             # Extract JSON using robust multi-strategy parser
-            return extract_json_safely(response_text)
+            scripts = extract_json_safely(response_text)
+
+            print(f"[DEBUG] Extraction returned {len(scripts)} scripts")
+            return scripts
         else:
             print(f"[ERROR] GLM API error {response.status_code} - See debug.log")
 
