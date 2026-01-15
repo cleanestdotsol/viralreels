@@ -2065,8 +2065,16 @@ def generate_scripts_glm(api_key, prompt_text):
         # Use the original coding endpoint that was working
         url = "https://api.z.ai/api/coding/paas/v4/chat/completions"
 
+        # Generate JWT token from API key (GLM requires JWT authentication)
+        print(f"[DEBUG] Generating JWT token from API key (format: id.secret)")
+        token = generate_glm_token(api_key)
+        if not token:
+            print("[ERROR] Failed to generate GLM JWT token - check API key format (should be id.secret)")
+            return []
+
+        print(f"[DEBUG] JWT token generated successfully (length: {len(token)} chars)")
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
 
