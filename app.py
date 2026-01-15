@@ -948,13 +948,24 @@ def signup():
         
         password_hash = generate_password_hash(password)
         
-        cursor = conn.execute('''
-            INSERT INTO users (email, password_hash, is_admin, is_premium, videos_limit)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (email, password_hash, is_admin, is_premium, videos_limit))
-        
-        user_id = cursor.lastrowid
-        
+        # Create user
+        if app.config['DATABASE_TYPE'] == 'postgresql':
+            # PostgreSQL - use RETURNING to get the inserted ID
+            cursor = conn.execute('''
+                INSERT INTO users (email, password_hash, is_admin, is_premium, videos_limit)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+            ''', (email, password_hash, is_admin, is_premium, videos_limit))
+            result = cursor.fetchone()
+            user_id = result['id'] if result else None
+        else:
+            # SQLite - use lastrowid
+            cursor = conn.execute('''
+                INSERT INTO users (email, password_hash, is_admin, is_premium, videos_limit)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (email, password_hash, is_admin, is_premium, videos_limit))
+            user_id = cursor.lastrowid
+
         # Create empty API keys entry
         conn.execute('INSERT INTO api_keys (user_id) VALUES (?)', (user_id,))
         
