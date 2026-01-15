@@ -59,6 +59,14 @@ for directory in directories:
     except Exception as e:
         print(f"[WARNING] Could not create directory {directory}: {e}")
 
+# Initialize database if it doesn't exist
+if not os.path.exists(app.config['DATABASE']):
+    print("[OK] Database not found, initializing...")
+    init_db()
+    print("[OK] Database initialized successfully!")
+else:
+    print("[OK] Database exists, ready to run")
+
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # Disable template caching
 
 # File-based sessions that persist across app reloads
