@@ -513,132 +513,261 @@ scheduler.add_job(
 
 def init_db():
     """Initialize database with tables"""
-    conn = sqlite3.connect(app.config['DATABASE'])
-    c = conn.cursor()
-    
-    # Users table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT 0,
-            is_premium BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            videos_generated INTEGER DEFAULT 0,
-            videos_limit INTEGER DEFAULT 30
-        )
-    ''')
-    
-    # API Keys table (encrypted in production, plaintext for local dev)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS api_keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            ai_provider TEXT DEFAULT 'manual',
-            claude_api_key TEXT,
-            openrouter_api_key TEXT,
-            glm_api_key TEXT,
-            facebook_page_token TEXT,
-            facebook_page_id TEXT,
-            elevenlabs_api_key TEXT,
-            auto_share_to_story BOOLEAN DEFAULT 1,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
-    
-    # Scripts table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS scripts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            topic TEXT NOT NULL,
-            hook TEXT NOT NULL,
-            fact1 TEXT NOT NULL,
-            fact2 TEXT NOT NULL,
-            fact3 TEXT NOT NULL,
-            fact4 TEXT NOT NULL,
-            payoff TEXT NOT NULL,
-            viral_score REAL,
-            selected BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
-    
+    is_postgres = app.config['DATABASE_TYPE'] == 'postgresql'
+
+    if is_postgres:
+        conn = psycopg2.connect(app.config['DATABASE_URL'])
+        cursor = conn.cursor()
+        # PostgreSQL syntax
+        users_sql = '''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_admin BOOLEAN DEFAULT FALSE,
+                is_premium BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                videos_generated INTEGER DEFAULT 0,
+                videos_limit INTEGER DEFAULT 30
+            )
+        '''
+        api_keys_sql = '''
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                ai_provider TEXT DEFAULT 'manual',
+                claude_api_key TEXT,
+                openrouter_api_key TEXT,
+                glm_api_key TEXT,
+                facebook_page_token TEXT,
+                facebook_page_id TEXT,
+                elevenlabs_api_key TEXT,
+                auto_share_to_story BOOLEAN DEFAULT TRUE,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''
+        scripts_sql = '''
+            CREATE TABLE IF NOT EXISTS scripts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                topic TEXT NOT NULL,
+                hook TEXT NOT NULL,
+                fact1 TEXT NOT NULL,
+                fact2 TEXT NOT NULL,
+                fact3 TEXT NOT NULL,
+                fact4 TEXT NOT NULL,
+                payoff TEXT NOT NULL,
+                viral_score REAL,
+                selected BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''
+    else:
+        conn = sqlite3.connect(app.config['DATABASE'])
+        cursor = conn.cursor()
+        # SQLite syntax
+        users_sql = '''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_admin BOOLEAN DEFAULT 0,
+                is_premium BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                videos_generated INTEGER DEFAULT 0,
+                videos_limit INTEGER DEFAULT 30
+            )
+        '''
+        api_keys_sql = '''
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                ai_provider TEXT DEFAULT 'manual',
+                claude_api_key TEXT,
+                openrouter_api_key TEXT,
+                glm_api_key TEXT,
+                facebook_page_token TEXT,
+                facebook_page_id TEXT,
+                elevenlabs_api_key TEXT,
+                auto_share_to_story BOOLEAN DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''
+        scripts_sql = '''
+            CREATE TABLE IF NOT EXISTS scripts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                topic TEXT NOT NULL,
+                hook TEXT NOT NULL,
+                fact1 TEXT NOT NULL,
+                fact2 TEXT NOT NULL,
+                fact3 TEXT NOT NULL,
+                fact4 TEXT NOT NULL,
+                payoff TEXT NOT NULL,
+                viral_score REAL,
+                selected BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''
+
+    # Create tables
+    cursor.execute(users_sql)
+    cursor.execute(api_keys_sql)
+    cursor.execute(scripts_sql)
+
     # Videos table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS videos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            script_id INTEGER NOT NULL,
-            file_path TEXT,
-            facebook_video_id TEXT,
-            views INTEGER DEFAULT 0,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            posted_at TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (script_id) REFERENCES scripts(id)
-        )
-    ''')
-    
-    # Prompts table (for custom script generation prompts)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS prompts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            description TEXT,
-            system_prompt TEXT NOT NULL,
-            topics TEXT,
-            num_scripts INTEGER DEFAULT 10,
-            is_active BOOLEAN DEFAULT 0,
-            is_default BOOLEAN DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_used TIMESTAMP,
-            times_used INTEGER DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
+    if is_postgres:
+        videos_sql = '''
+            CREATE TABLE IF NOT EXISTS videos (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                script_id INTEGER NOT NULL,
+                file_path TEXT,
+                facebook_video_id TEXT,
+                views INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                posted_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            )
+        '''
+    else:
+        videos_sql = '''
+            CREATE TABLE IF NOT EXISTS videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                script_id INTEGER NOT NULL,
+                file_path TEXT,
+                facebook_video_id TEXT,
+                views INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                posted_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            )
+        '''
+    cursor.execute(videos_sql)
 
-    # Scheduled posts table (for automated posting)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS scheduled_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            video_id INTEGER NOT NULL,
-            scheduled_time TIMESTAMP NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            posted_at TIMESTAMP,
-            facebook_video_id TEXT,
-            story_id TEXT,
-            error_message TEXT,
-            retry_count INTEGER DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (video_id) REFERENCES videos(id)
-        )
-    ''')
+    # Prompts table
+    if is_postgres:
+        prompts_sql = '''
+            CREATE TABLE IF NOT EXISTS prompts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                system_prompt TEXT NOT NULL,
+                topics TEXT,
+                num_scripts INTEGER DEFAULT 10,
+                is_active BOOLEAN DEFAULT FALSE,
+                is_default BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used TIMESTAMP,
+                times_used INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''
+    else:
+        prompts_sql = '''
+            CREATE TABLE IF NOT EXISTS prompts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                system_prompt TEXT NOT NULL,
+                topics TEXT,
+                num_scripts INTEGER DEFAULT 10,
+                is_active BOOLEAN DEFAULT 0,
+                is_default BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used TIMESTAMP,
+                times_used INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        '''
+    cursor.execute(prompts_sql)
 
-    # Video queue table (for 3-hour continuous posting)
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS video_queue (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            video_id INTEGER NOT NULL,
-            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            queued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'queued',
-            posted_at TIMESTAMP,
-            facebook_video_id TEXT,
-            story_id TEXT,
-            error_message TEXT,
-            retry_count INTEGER DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (video_id) REFERENCES videos(id)
-        )
-    ''')
+    # Scheduled posts table
+    if is_postgres:
+        scheduled_sql = '''
+            CREATE TABLE IF NOT EXISTS scheduled_posts (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                scheduled_time TIMESTAMP NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                posted_at TIMESTAMP,
+                facebook_video_id TEXT,
+                story_id TEXT,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (video_id) REFERENCES videos(id)
+            )
+        '''
+    else:
+        scheduled_sql = '''
+            CREATE TABLE IF NOT EXISTS scheduled_posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                scheduled_time TIMESTAMP NOT NULL,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                posted_at TIMESTAMP,
+                facebook_video_id TEXT,
+                story_id TEXT,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (video_id) REFERENCES videos(id)
+            )
+        '''
+    cursor.execute(scheduled_sql)
+
+    # Video queue table
+    if is_postgres:
+        queue_sql = '''
+            CREATE TABLE IF NOT EXISTS video_queue (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                queued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'queued',
+                posted_at TIMESTAMP,
+                facebook_video_id TEXT,
+                story_id TEXT,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (video_id) REFERENCES videos(id)
+            )
+        '''
+    else:
+        queue_sql = '''
+            CREATE TABLE IF NOT EXISTS video_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                queued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'queued',
+                posted_at TIMESTAMP,
+                facebook_video_id TEXT,
+                story_id TEXT,
+                error_message TEXT,
+                retry_count INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (video_id) REFERENCES videos(id)
+            )
+        '''
+    cursor.execute(queue_sql)
 
     conn.commit()
     conn.close()
@@ -666,15 +795,79 @@ else:
 
 # ============================================================================
 
+class DatabaseConnection:
+    """Wrapper class to handle both SQLite and PostgreSQL differences"""
+
+    def __init__(self, conn):
+        self.conn = conn
+        self.is_postgres = app.config['DATABASE_TYPE'] == 'postgresql'
+
+        if self.is_postgres:
+            self.cursor = conn.cursor()
+        else:
+            self.cursor = conn.cursor()
+
+    def execute(self, query, params=None):
+        """Execute query with proper parameter substitution"""
+        if params is None:
+            params = ()
+
+        # Convert ? to %s for PostgreSQL
+        if self.is_postgres:
+            query = query.replace('?', '%s')
+
+        self.cursor.execute(query, params)
+        return self.cursor
+
+    def fetchone(self):
+        """Fetch one row"""
+        if self.is_postgres:
+            row = self.cursor.fetchone()
+            if row:
+                # Convert RealDictRow to dict-like object
+                return dict(row)
+            return None
+        else:
+            return self.cursor.fetchone()
+
+    def fetchall(self):
+        """Fetch all rows"""
+        if self.is_postgres:
+            rows = self.cursor.fetchall()
+            return [dict(row) for row in rows] if rows else []
+        else:
+            return self.cursor.fetchall()
+
+    @property
+    def lastrowid(self):
+        """Get last inserted row ID"""
+        if self.is_postgres:
+            # For PostgreSQL, we need to return the ID from INSERT ... RETURNING
+            # But for backward compat, we'll use cursor.lastrowid if available
+            # Otherwise return None (caller should use RETURNING clause)
+            return getattr(self.cursor, 'lastrowid', None)
+        else:
+            return self.cursor.lastrowid
+
+    def commit(self):
+        """Commit transaction"""
+        self.conn.commit()
+
+    def close(self):
+        """Close connection"""
+        if self.is_postgres:
+            self.cursor.close()
+        self.conn.close()
+
 def get_db():
-    """Get database connection (SQLite or PostgreSQL)"""
+    """Get database connection wrapper (SQLite or PostgreSQL)"""
     if app.config['DATABASE_TYPE'] == 'postgresql':
         conn = psycopg2.connect(app.config['DATABASE_URL'], cursor_factory=RealDictCursor)
-        return conn
     else:
         conn = sqlite3.connect(app.config['DATABASE'])
         conn.row_factory = sqlite3.Row
-        return conn
+
+    return DatabaseConnection(conn)
 
 # ============================================================================
 # AUTHENTICATION DECORATORS
