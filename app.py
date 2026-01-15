@@ -1343,7 +1343,7 @@ def generate_scripts():
 
     # Get recent published videos to avoid similar content
     recent_content = conn.execute('''
-        SELECT DISTINCT s.topic, s.hook
+        SELECT DISTINCT s.topic, s.hook, v.created_at
         FROM videos v
         JOIN scripts s ON v.script_id = s.id
         WHERE v.user_id = ? AND v.status = 'completed'
