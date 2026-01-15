@@ -547,15 +547,16 @@ def process_script_generation_job(job_id):
 
         print(f"[SCRIPT_JOB] Processing job #{job_id} for user {job['email']}")
 
-        # Get recent content to avoid duplication
+        # Get recent content to avoid duplication (check ALL generated scripts)
         recent_content = conn.execute('''
-            SELECT DISTINCT s.topic, s.hook, v.created_at
-            FROM videos v
-            JOIN scripts s ON v.script_id = s.id
-            WHERE v.user_id = ? AND v.status = 'completed'
-            ORDER BY v.created_at DESC
-            LIMIT 20
+            SELECT DISTINCT s.topic, s.hook, s.fact1, s.created_at
+            FROM scripts s
+            WHERE s.user_id = ?
+            ORDER BY s.created_at DESC
+            LIMIT 50
         ''', (job['user_id'],)).fetchall()
+
+        print(f"[INFO] Found {len(recent_content)} previous scripts to avoid duplicating")
 
         # Build prompt
         if job['system_prompt']:
@@ -569,11 +570,12 @@ def process_script_generation_job(job_id):
 
             # Add recent content exclusion
             if recent_content:
-                exclusion_text = "\n\n**IMPORTANT - Avoid these recent topics/hooks:**\n"
-                exclusion_text += "The following topics and hooks have been used recently. DO NOT repeat them:\n\n"
+                exclusion_text = "\n\n**IMPORTANT - Avoid these previous scripts:**\n"
+                exclusion_text += "The following scripts have already been generated. DO NOT repeat similar topics:\n\n"
                 for i, row in enumerate(recent_content, 1):
-                    exclusion_text += f"{i}. Topic: {row['topic']}\n   Hook: {row['hook']}\n"
-                exclusion_text += "\nChoose completely DIFFERENT topics and angles.\n"
+                    exclusion_text += f"{i}. Topic: {row['topic']}\n   Hook: {row['hook'][:80]}...\n"
+                exclusion_text += f"\n   Total: {len(recent_content)} previous scripts found.\n"
+                exclusion_text += "\nChoose UNIQUE, FRESH topics that haven't been covered before.\n"
                 prompt_text = prompt_text.replace('{topics}', topics) + exclusion_text
         else:
             # Fallback default prompt
@@ -596,6 +598,16 @@ def process_script_generation_job(job_id):
 
 Each script MUST have ALL 8 fields: topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score.
 NO extra text, NO markdown formatting, just the JSON array."""
+
+            # Add recent content exclusion for fallback prompt too
+            if recent_content:
+                exclusion_text = "\n\n**IMPORTANT - Avoid these previous scripts:**\n"
+                exclusion_text += "The following scripts have already been generated. DO NOT repeat similar topics:\n\n"
+                for i, row in enumerate(recent_content[:10], 1):  # Show first 10
+                    exclusion_text += f"{i}. Topic: {row['topic']}\n   Hook: {row['hook'][:80]}...\n"
+                exclusion_text += f"\n   Total: {len(recent_content)} previous scripts found.\n"
+                exclusion_text += "\nChoose UNIQUE, FRESH topics that haven't been covered before.\n"
+                prompt_text = prompt_text + exclusion_text
 
         print(f"[DEBUG] Sending prompt to GLM ({len(prompt_text)} chars)")
         print(f"[DEBUG] Prompt preview: {prompt_text[:500]}...")
