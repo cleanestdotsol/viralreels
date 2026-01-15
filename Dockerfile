@@ -14,9 +14,11 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     fonts-freefont-ttf \
     fonts-liberation \
+    fonts-noto-color-emoji \
     fontconfig \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -fv
 
 # Set working directory
 WORKDIR /app

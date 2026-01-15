@@ -3399,7 +3399,7 @@ PlayDepth: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Liberation Sans,14,&H00FFFFFF,&H000000FF,&H00FFFF00,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,1,5,100,100,420,1
+Style: Default,Noto Color Emoji,14,&H00FFFFFF,&H000000FF,&H00FFFF00,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,1,5,100,100,420,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
