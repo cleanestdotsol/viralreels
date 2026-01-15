@@ -592,7 +592,7 @@ def process_script_generation_job(job_id):
     "fact2": "Second fact",
     "fact3": "Third fact",
     "fact4": "Fourth fact",
-    "payoff": "Mind-blowing conclusion with emoji",
+    "payoff": "Mind-blowing conclusion with impact",
     "viral_score": 0.85
   }}
 ]
@@ -1933,7 +1933,7 @@ Each script needs:
 - topic: The subject
 - hook: The opening hook (target 10 words, max 18 for clarity) - Something that makes you stop scrolling
 - fact1-4: Four fascinating facts building on each other (target 10 words, max 18 for clarity)
-- payoff: The mind-blowing conclusion with emoji (target 10 words, max 18 for clarity)
+- payoff: The mind-blowing conclusion with impact (target 10 words, max 18 for clarity)
 - viral_score: 0-1 rating of how shareable this is
 
 Topics: {topics}
@@ -2594,7 +2594,7 @@ Each script needs:
 - topic: The subject
 - hook: The opening hook (target 10 words, max 18 for clarity) - Something that makes you stop scrolling
 - fact1-4: Four fascinating facts building on each other (target 10 words, max 18 for clarity)
-- payoff: The mind-blowing conclusion with emoji (target 10 words, max 18 for clarity)
+- payoff: The mind-blowing conclusion with impact (target 10 words, max 18 for clarity)
 - viral_score: 0-1 rating of how shareable this is
 
 Topics: {topics}
@@ -3355,6 +3355,21 @@ def create_video_ffmpeg(script, output_path, api_keys):
             f.write(msg + '\n')
         print(msg)
 
+    def strip_emojis(text):
+        """Remove emojis from text to prevent FFmpeg font rendering errors"""
+        import re
+        # Unicode ranges for emojis
+        emoji_pattern = re.compile("["
+            u"\U0001F600-\U0001F64F"  # emoticons
+            u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+            u"\U0001F680-\U0001F6FF"  # transport & map symbols
+            u"\U0001F1E0-\U0001F1FF"  # flags (iOS)
+            u"\U00002702-\U000027B0"
+            u"\U000024C2-\U0001F251"
+            u"\U0001F900-\U0001F9FF"  # supplemental symbols
+            "]+", flags=re.UNICODE)
+        return emoji_pattern.sub(r'', text)
+
     try:
         log(f"\n{'='*60}")
         log(f"[VIDEO] Starting video generation at {datetime.now()}")
@@ -3443,6 +3458,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 text = script.get(section, '')
                 if not text:
                     continue  # Skip empty sections
+
+                # Strip emojis to prevent FFmpeg font rendering errors
+                text = strip_emojis(text)
+                log(f"    [INFO] Stripped emojis from {section} text")
 
                 log(f"  [SLIDE] Creating slide {idx + 1}/6: {section}")
 
