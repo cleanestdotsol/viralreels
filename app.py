@@ -2920,7 +2920,11 @@ def check_video_status(job_id):
     conn.close()
 
     if not job:
+        print(f"[STATUS_API] Job #{job_id} not found for user {session['user_id']}")
         return jsonify({'error': 'Job not found'}), 404
+
+    # Log status check for debugging
+    print(f"[STATUS_API] Job #{job_id} status: {job['status']}, started_at: {job['started_at']}, completed_at: {job['completed_at']}")
 
     return jsonify({
         'id': job['id'],
