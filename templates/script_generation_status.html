@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Generating Scripts</h4>
+                </div>
+                <div class="card-body text-center">
+                    <!-- Status Icon -->
+                    <div id="status-icon" class="mb-4">
+                        {% if job.status == 'pending' %}
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        {% elif job.status == 'processing' %}
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        {% elif job.status == 'completed' %}
+                        <div class="text-success" style="font-size: 4rem;">✓</div>
+                        {% elif job.status == 'failed' %}
+                        <div class="text-danger" style="font-size: 4rem;">✕</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Status Message -->
+                    <h5 id="status-message">
+                        {% if job.status == 'pending' %}
+                            Job queued... waiting to start
+                        {% elif job.status == 'processing' %}
+                            AI is generating your scripts... this may take 1-2 minutes
+                        {% elif job.status == 'completed' %}
+                            Successfully generated {{ job.num_scripts }} scripts!
+                        {% elif job.status == 'failed' %}
+                            Generation failed
+                        {% endif %}
+                    </h5>
+
+                    <!-- Progress Bar (for processing state) -->
+                    {% if job.status == 'processing' %}
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar"
+                             style="width: 100%"
+                             aria-valuenow="100"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                            Processing...
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Error Message -->
+                    {% if job.status == 'failed' and job.error_message %}
+                    <div class="alert alert-danger mt-3">
+                        <strong>Error:</strong> {{ job.error_message }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Timestamps -->
+                    <div class="text-muted small mt-3">
+                        {% if job.created_at %}
+                        <p class="mb-1">Created: {{ job.created_at }}</p>
+                        {% endif %}
+                        {% if job.started_at %}
+                        <p class="mb-1">Started: {{ job.started_at }}</p>
+                        {% endif %}
+                        {% if job.completed_at %}
+                        <p class="mb-1">Completed: {{ job.completed_at }}</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-4">
+                        {% if job.status == 'completed' %}
+                        <a href="/dashboard" class="btn btn-primary btn-lg">View Your Scripts</a>
+                        {% elif job.status == 'failed' %}
+                        <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+                        <a href="/settings" class="btn btn-outline-warning">Check API Settings</a>
+                        {% else %}
+                        <p class="text-muted">
+                            <small>This page will automatically update. If it doesn't, <a href="#" onclick="location.reload(); return false;">click here to refresh</a>.</small>
+                        </p>
+                        <a href="/dashboard" class="btn btn-outline-secondary">Back to Dashboard</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="alert alert-info mt-3">
+                <strong>Why this page?</strong><br>
+                Script generation runs in the background to avoid timeouts. The AI typically takes 60-120 seconds to generate 10-15 scripts.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Poll job status every 3 seconds if not completed/failed
+{% if job.status in ['pending', 'processing'] %}
+const jobId = {{ job.id }};
+let pollCount = 0;
+const maxPolls = 60; // Poll for up to 3 minutes (60 * 3 seconds)
+
+function checkStatus() {
+    pollCount++;
+
+    // Stop polling after max attempts
+    if (pollCount > maxPolls) {
+        console.log('Max polling attempts reached');
+        return;
+    }
+
+    fetch(`/api/check-generation-status/${jobId}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Status update:', data);
+
+            // Update UI based on new status
+            const statusIcon = document.getElementById('status-icon');
+            const statusMessage = document.getElementById('status-message');
+
+            if (data.status === 'completed') {
+                // Success - redirect to dashboard
+                statusIcon.innerHTML = '<div class="text-success" style="font-size: 4rem;">✓</div>';
+                statusMessage.innerHTML = `Successfully generated ${data.num_scripts} scripts!`;
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
+            } else if (data.status === 'failed') {
+                // Failed - show error
+                statusIcon.innerHTML = '<div class="text-danger" style="font-size: 4rem;">✕</div>';
+                statusMessage.innerHTML = 'Generation failed';
+
+                // Add error alert if not present
+                if (!document.querySelector('.alert-danger')) {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger mt-3';
+                    alertDiv.innerHTML = `<strong>Error:</strong> ${data.error_message || 'Unknown error'}`;
+                    document.querySelector('.card-body').insertBefore(
+                        alertDiv,
+                        document.querySelector('.text-muted')
+                    );
+                }
+            } else if (data.status === 'processing') {
+                // Update to processing state if still pending
+                if (statusIcon.querySelector('.text-primary')) {
+                    statusIcon.innerHTML = '<div class="spinner-border text-warning" role="status"><span class="visually-hidden">Processing...</span></div>';
+                    statusMessage.innerHTML = 'AI is generating your scripts... this may take 1-2 minutes';
+
+                    // Add progress bar if not present
+                    if (!document.querySelector('.progress')) {
+                        const progressBar = document.createElement('div');
+                        progressBar.className = 'progress mb-3';
+                        progressBar.style.height = '25px';
+                        progressBar.innerHTML = '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">Processing...</div>';
+                        statusMessage.after(progressBar);
+                    }
+                }
+
+                // Continue polling
+                setTimeout(checkStatus, 3000);
+            } else {
+                // Still pending - continue polling
+                setTimeout(checkStatus, 3000);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking status:', error);
+            // Continue polling even on error
+            setTimeout(checkStatus, 3000);
+        });
+}
+
+// Start polling after a short delay
+setTimeout(checkStatus, 2000);
+{% endif %}
+</script>
+{% endblock %}

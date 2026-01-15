@@ -508,6 +508,195 @@ scheduler.add_job(
 )
 
 # ============================================================================
+# ASYNC SCRIPT GENERATION (Background Jobs)
+# ============================================================================
+
+def process_script_generation_job(job_id):
+    """
+    Background job that processes a single script generation request
+    Runs in APScheduler thread, safe from Railway HTTP timeouts
+    """
+    try:
+        conn = get_db()
+
+        # Get job details
+        job = conn.execute('''
+            SELECT j.*, u.email, ak.ai_provider, ak.glm_api_key,
+                   ak.claude_api_key, ak.openrouter_api_key,
+                   p.system_prompt, p.topics, p.num_scripts
+            FROM script_generation_jobs j
+            JOIN users u ON j.user_id = u.id
+            JOIN api_keys ak ON j.user_id = ak.user_id
+            LEFT JOIN prompts p ON j.prompt_id = p.id
+            WHERE j.id = ?
+        ''', (job_id,)).fetchone()
+
+        if not job:
+            print(f"[SCRIPT_JOB] Job #{job_id} not found")
+            conn.close()
+            return
+
+        # Update status to processing
+        conn.execute('''
+            UPDATE script_generation_jobs
+            SET status = 'processing', started_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (job_id,))
+        conn.commit()
+
+        print(f"[SCRIPT_JOB] Processing job #{job_id} for user {job['email']}")
+
+        # Get recent content to avoid duplication
+        recent_content = conn.execute('''
+            SELECT DISTINCT s.topic, s.hook, v.created_at
+            FROM videos v
+            JOIN scripts s ON v.script_id = s.id
+            WHERE v.user_id = ? AND v.status = 'completed'
+            ORDER BY v.created_at DESC
+            LIMIT 20
+        ''', (job['user_id'],)).fetchall()
+
+        # Build prompt
+        if job['system_prompt']:
+            prompt_text = job['system_prompt']
+            num_scripts = job['num_scripts'] or 10
+            topics = job['topics'] or "animals, space, ocean, psychology, human body, food science, nature"
+
+            # Replace placeholders
+            prompt_text = prompt_text.replace('{num_scripts}', str(num_scripts))
+            prompt_text = prompt_text.replace('{topics}', topics)
+
+            # Add recent content exclusion
+            if recent_content:
+                exclusion_text = "\n\n**IMPORTANT - Avoid these recent topics/hooks:**\n"
+                exclusion_text += "The following topics and hooks have been used recently. DO NOT repeat them:\n\n"
+                for i, row in enumerate(recent_content, 1):
+                    exclusion_text += f"{i}. Topic: {row['topic']}\n   Hook: {row['hook']}\n"
+                exclusion_text += "\nChoose completely DIFFERENT topics and angles.\n"
+                prompt_text = prompt_text.replace('{topics}', topics) + exclusion_text
+        else:
+            # Fallback default prompt
+            num_scripts = 15
+            prompt_text = f"""Generate {num_scripts} viral Facebook Reels scripts in valid JSON format..."""
+
+        # Call appropriate AI provider
+        scripts = []
+        ai_provider = job['ai_provider'] or 'manual'
+
+        if ai_provider == 'glm' and job['glm_api_key']:
+            scripts = generate_scripts_glm(job['glm_api_key'], prompt_text)
+        elif ai_provider == 'claude' and job['claude_api_key']:
+            scripts = generate_scripts_claude(job['claude_api_key'], prompt_text)
+        elif ai_provider == 'openrouter' and job['openrouter_api_key']:
+            scripts = generate_scripts_openrouter(job['openrouter_api_key'], prompt_text)
+
+        # Save scripts to database
+        if scripts:
+            for script in scripts:
+                conn.execute('''
+                    INSERT INTO scripts (user_id, topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (job['user_id'], script['topic'], script['hook'],
+                      script['fact1'], script['fact2'], script['fact3'],
+                      script['fact4'], script['payoff'], script.get('viral_score', 0.5)))
+
+            # Update prompt usage stats
+            if job['prompt_id']:
+                conn.execute('''
+                    UPDATE prompts
+                    SET times_used = times_used + 1, last_used = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (job['prompt_id'],))
+
+            # Mark job complete
+            conn.execute('''
+                UPDATE script_generation_jobs
+                SET status = 'completed', num_scripts = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (len(scripts), job_id))
+
+            print(f"[SCRIPT_JOB] Job #{job_id} completed: {len(scripts)} scripts generated")
+        else:
+            # No scripts generated - mark as failed
+            conn.execute('''
+                UPDATE script_generation_jobs
+                SET status = 'failed', error_message = 'AI provider returned no scripts', completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (job_id,))
+            print(f"[SCRIPT_JOB] Job #{job_id} failed: No scripts generated")
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        print(f"[SCRIPT_JOB ERROR] Job #{job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        # Mark job as failed
+        try:
+            conn = get_db()
+            conn.execute('''
+                UPDATE script_generation_jobs
+                SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (str(e)[:1000], job_id))  # Truncate error to fit in column
+            conn.commit()
+            conn.close()
+        except:
+            pass
+
+def process_script_generation_queue():
+    """
+    Background job that checks for pending script generation jobs
+    This runs automatically every 30 seconds via APScheduler
+    """
+    try:
+        print("\n[SCRIPT_QUEUE] Checking for pending jobs...")
+        conn = get_db()
+
+        # Find all pending jobs (process up to 3 at a time to avoid overload)
+        pending_jobs = conn.execute('''
+            SELECT id FROM script_generation_jobs
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT 3
+        ''').fetchall()
+
+        if not pending_jobs:
+            conn.close()
+            return
+
+        print(f"[SCRIPT_QUEUE] Found {len(pending_jobs)} pending job(s)")
+
+        # Process each job in a separate thread
+        import threading
+        for job in pending_jobs:
+            print(f"[SCRIPT_QUEUE] Starting job #{job['id']}")
+            # Run in background thread to avoid blocking the scheduler
+            threading.Thread(
+                target=process_script_generation_job,
+                args=(job['id'],),
+                daemon=True
+            ).start()
+
+        conn.close()
+
+    except Exception as e:
+        print(f"[SCRIPT_QUEUE ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+# Add script generation job processor to scheduler (runs every 30 seconds)
+scheduler.add_job(
+    func=process_script_generation_queue,
+    trigger=IntervalTrigger(seconds=30),
+    id='process_script_generation_queue',
+    name='Process script generation queue',
+    replace_existing=True
+)
+
+# ============================================================================
 # DATABASE SETUP
 # ============================================================================
 
@@ -768,6 +957,41 @@ def init_db():
             )
         '''
     cursor.execute(queue_sql)
+
+    # Script generation jobs table (for async AI script generation)
+    if is_postgres:
+        script_jobs_sql = '''
+            CREATE TABLE IF NOT EXISTS script_generation_jobs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                status TEXT DEFAULT 'pending',
+                num_scripts INTEGER DEFAULT 0,
+                prompt_id INTEGER,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (prompt_id) REFERENCES prompts(id)
+            )
+        '''
+    else:
+        script_jobs_sql = '''
+            CREATE TABLE IF NOT EXISTS script_generation_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                status TEXT DEFAULT 'pending',
+                num_scripts INTEGER DEFAULT 0,
+                prompt_id INTEGER,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (prompt_id) REFERENCES prompts(id)
+            )
+        '''
+    cursor.execute(script_jobs_sql)
 
     conn.commit()
     conn.close()
@@ -1436,74 +1660,91 @@ IMPORTANT: Return ONLY the JSON array. No explanations, no markdown formatting, 
                 prompt_text += f"{i}. Topic: {row['topic']}\n   Hook: {row['hook']}\n"
             prompt_text += "\nChoose completely DIFFERENT topics and angles from the list above.\n"
 
+    # Validate API key exists before creating job
     if ai_provider == 'claude':
         if not api_keys or not api_keys['claude_api_key']:
             flash('Please add your Claude API key in Settings first.', 'warning')
             conn.close()
             return redirect(url_for('settings'))
-
-        scripts = generate_scripts_claude(api_keys['claude_api_key'], prompt_text)
-
     elif ai_provider == 'openrouter':
         if not api_keys or not api_keys['openrouter_api_key']:
             flash('Please add your OpenRouter API key in Settings first.', 'warning')
             conn.close()
             return redirect(url_for('settings'))
-
-        scripts = generate_scripts_openrouter(api_keys['openrouter_api_key'], prompt_text)
-
     elif ai_provider == 'glm':
-        import sys as _sys2
-        _sys2.stderr.write(f"[DEBUG] GLM branch - checking key...\n")
-        _sys2.stderr.write(f"[DEBUG] api_keys is None: {api_keys is None}\n")
-        _sys2.stderr.write(f"[DEBUG] glm_api_key value: {repr(api_keys['glm_api_key'])}\n")
-
         if not api_keys or not api_keys['glm_api_key']:
-            _sys2.stderr.write(f"[DEBUG] GLM key check FAILED, redirecting to settings\n")
             flash('Please add your GLM API key in Settings first.', 'warning')
             conn.close()
             return redirect(url_for('settings'))
-
-        _sys2.stderr.write(f"[DEBUG] Calling generate_scripts_glm...\n")
-        scripts = generate_scripts_glm(api_keys['glm_api_key'], prompt_text)
-        _sys2.stderr.write(f"[DEBUG] generate_scripts_glm returned {len(scripts) if scripts else 0} scripts\n")
-
     else:
         flash('Please select an AI provider in Settings.', 'warning')
         conn.close()
         return redirect(url_for('settings'))
 
-    if not scripts:
-        flash('Failed to generate scripts. The AI API may be busy or timed out. Please try again in a moment.', 'danger')
-        conn.close()
+    # Create async job and return immediately (avoids Railway timeout)
+    if app.config['DATABASE_TYPE'] == 'postgresql':
+        cursor = conn.execute('''
+            INSERT INTO script_generation_jobs (user_id, prompt_id, status)
+            VALUES (%s, %s, 'pending')
+            RETURNING id
+        ''', (session['user_id'], active_prompt['id'] if active_prompt else None))
+        result = cursor.fetchone()
+        job_id = result['id']
+    else:
+        cursor = conn.execute('''
+            INSERT INTO script_generation_jobs (user_id, prompt_id, status)
+            VALUES (?, ?, 'pending')
+        ''', (session['user_id'], active_prompt['id'] if active_prompt else None))
+        job_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    print(f"[INFO] Created script generation job #{job_id} for user {session['user_id']} (provider: {ai_provider})")
+
+    # Redirect to status page immediately (<1 second, well under Railway's 30s timeout)
+    return redirect(url_for('script_generation_status', job_id=job_id))
+
+@app.route('/script-generation-status/<int:job_id>')
+@login_required
+def script_generation_status(job_id):
+    """Status page for script generation jobs"""
+    conn = get_db()
+    job = conn.execute('''
+        SELECT * FROM script_generation_jobs
+        WHERE id = ? AND user_id = ?
+    ''', (job_id, session['user_id'])).fetchone()
+    conn.close()
+
+    if not job:
+        flash('Job not found.', 'danger')
         return redirect(url_for('dashboard'))
 
-    # Save scripts to database
-    try:
-        for script in scripts:
-            conn.execute('''
-                INSERT INTO scripts (user_id, topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (session['user_id'], script['topic'], script['hook'], 
-                  script['fact1'], script['fact2'], script['fact3'], 
-                  script['fact4'], script['payoff'], script.get('viral_score', 0.5)))
-        
-        # Update prompt usage stats
-        if active_prompt:
-            conn.execute('''
-                UPDATE prompts 
-                SET times_used = times_used + 1, last_used = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (active_prompt['id'],))
-        
-        conn.commit()
-        flash(f'Generated {len(scripts)} scripts successfully!', 'success')
-    except Exception as e:
-        flash(f'Error saving scripts: {str(e)}', 'danger')
-    finally:
-        conn.close()
-    
-    return redirect(url_for('dashboard'))
+    return render_template('script_generation_status.html', job=job)
+
+@app.route('/api/check-generation-status/<int:job_id>')
+@login_required
+def check_generation_status(job_id):
+    """API endpoint for polling job status"""
+    conn = get_db()
+    job = conn.execute('''
+        SELECT * FROM script_generation_jobs
+        WHERE id = ? AND user_id = ?
+    ''', (job_id, session['user_id'])).fetchone()
+    conn.close()
+
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    return jsonify({
+        'id': job['id'],
+        'status': job['status'],
+        'num_scripts': job['num_scripts'],
+        'error_message': job['error_message'],
+        'created_at': job['created_at'].isoformat() if job['created_at'] else None,
+        'started_at': job['started_at'].isoformat() if job['started_at'] else None,
+        'completed_at': job['completed_at'].isoformat() if job['completed_at'] else None
+    })
 
 def generate_scripts_claude(api_key, prompt_text):
     """Generate scripts using Claude API"""
