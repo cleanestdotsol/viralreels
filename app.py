@@ -1870,6 +1870,9 @@ def validate_script_fields(script):
     Returns the script with defaults for missing optional fields.
     Returns None if required fields are missing.
     """
+    # Debug: log what we received
+    print(f"[DEBUG] Validating script with fields: {list(script.keys())}")
+
     # Map field variations to standard names
     mapped = {}
 
@@ -1891,13 +1894,16 @@ def validate_script_fields(script):
     # Map scenes array to fact1-4 + payoff
     if 'scenes' in script and isinstance(script['scenes'], list):
         scenes = script['scenes']
+        print(f"[DEBUG] Converting scenes array to facts: {len(scenes)} scenes")
         mapped['fact1'] = str(scenes[0]) if len(scenes) > 0 else ''
         mapped['fact2'] = str(scenes[1]) if len(scenes) > 1 else ''
         mapped['fact3'] = str(scenes[2]) if len(scenes) > 2 else ''
         mapped['fact4'] = str(scenes[3]) if len(scenes) > 3 else ''
         mapped['payoff'] = str(scenes[-1]) if len(scenes) > 4 else 'Mind blown! 🤯'
+        print(f"[DEBUG] After conversion - fact1: {mapped['fact1'][:30] if mapped['fact1'] else 'EMPTY'}...")
     else:
         # Use fact fields directly
+        print(f"[DEBUG] Using fact fields directly")
         for i in range(1, 5):
             field = f'fact{i}'
             if field not in script:
@@ -1913,6 +1919,7 @@ def validate_script_fields(script):
     # Add default for viral_score if missing
     mapped['viral_score'] = script.get('viral_score', 0.5)
 
+    print(f"[DEBUG] Validated script - topic: {mapped['topic'][:30]}, hook: {mapped['hook'][:30]}")
     return mapped
 
 def extract_json_safely(response_text):
@@ -2160,8 +2167,9 @@ def generate_scripts_glm(api_key, prompt_text):
             with open('debug.log', 'a', encoding='utf-8') as f:
                 f.write(f"\n\n=== EXTRACTED CONTENT ===\n")
                 f.write(f"Length: {len(response_text)} chars\n")
-                f.write(f"First 500 chars: {response_text[:500]}\n")
-                f.write(f"Last 500 chars: {response_text[-500:]}\n")
+                f.write(f"First 1000 chars:\n{response_text[:1000]}\n")
+                f.write(f"Last 500 chars:\n{response_text[-500:]}\n")
+                f.write(f"Full response:\n{response_text}\n")  # Log everything
 
             # Extract JSON using robust multi-strategy parser
             scripts = extract_json_safely(response_text)
