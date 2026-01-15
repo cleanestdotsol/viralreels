@@ -3151,7 +3151,7 @@ PlayDepth: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Verdana Bold,14,&H00FFFFFF,&H000000FF,&H00FFFF00,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,1,5,100,100,420,1
+Style: Default,Liberation Sans,14,&H00FFFFFF,&H000000FF,&H00FFFF00,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,1,5,100,100,420,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -3212,8 +3212,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Generate this slide's video
                 slide_video_path = os.path.join(temp_dir, f'slide_{idx}_{section}.mp4')
 
-                # Use relative path from current directory with forward slashes for FFmpeg
-                slide_ass_rel = os.path.relpath(slide_ass_path).replace('\\', '/')
+                # Use absolute path for FFmpeg to avoid file not found errors
+                slide_ass_abs = os.path.abspath(slide_ass_path).replace('\\', '/')
 
                 if section_audio and os.path.exists(section_audio):
                     # With audio - use audio duration + padding
@@ -3222,7 +3222,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         '-f', 'lavfi',
                         '-i', f'color=c=black:s=1080x1920:d={slide_duration}:r=30',
                         '-i', section_audio,
-                        '-vf', f"ass={slide_ass_rel}",
+                        '-vf', f"ass='{slide_ass_abs}'",
                         '-c:v', 'libx264',
                         '-c:a', 'aac',
                         '-preset', 'fast',
@@ -3237,7 +3237,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         'ffmpeg',
                         '-f', 'lavfi',
                         '-i', f'color=c=black:s=1080x1920:d={slide_duration}:r=30',
-                        '-vf', f"ass={slide_ass_rel}",
+                        '-vf', f"ass='{slide_ass_abs}'",
                         '-c:v', 'libx264',
                         '-preset', 'fast',
                         '-pix_fmt', 'yuv420p',
@@ -3443,8 +3443,8 @@ def generate_voiceover(script, output_path, api_key):
         with open(concat_list_path, 'w', encoding='utf-8') as f:
             for section in sections:
                 if section in section_audios:
-                    # Use single quotes for Windows path compatibility
-                    audio_path = section_audios[section]['audio_file'].replace('\\', '/')
+                    # Use absolute paths to avoid FFmpeg path resolution issues
+                    audio_path = os.path.abspath(section_audios[section]['audio_file']).replace('\\', '/')
                     f.write(f"file '{audio_path}'\n")
 
         # Concatenate audio files

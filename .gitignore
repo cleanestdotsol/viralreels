@@ -53,3 +53,4 @@ railway/
 # Deployment specific
 *.bak
 *.backup
+nul
