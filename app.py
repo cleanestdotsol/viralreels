@@ -108,6 +108,7 @@ def start_scheduler():
         print("[OK] Scheduler started:")
         print("  - Scheduled posts: checks every 60 seconds")
         print("  - Video queue: processes every 3 hours")
+        print("  - Script generation: processes every 30 seconds")
 
 def post_scheduled_videos():
     """
@@ -3223,6 +3224,13 @@ def escape_text(text):
 # RUN APP
 # ============================================================================
 
+# Start the scheduler when the module is imported (for gunicorn/Railway)
+# This ensures background jobs run in production
+try:
+    start_scheduler()
+except Exception as e:
+    print(f"[WARNING] Failed to start scheduler: {e}")
+
 if __name__ == '__main__':
     # Create necessary directories for Railway deployment
     directories = [
@@ -3305,9 +3313,6 @@ if __name__ == '__main__':
     # Create videos directory
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    # Start the scheduler
-    start_scheduler()
-
     print("\n" + "="*60)
     print("VIRAL REELS GENERATOR")
     print("="*60)
@@ -3317,6 +3322,7 @@ if __name__ == '__main__':
     print("\nScheduler: ACTIVE")
     print("  - Scheduled posts: checks every 60 seconds")
     print("  - Video queue: processes every 3 hours")
+    print("  - Script generation: processes every 30 seconds")
     print("  - Auto-shares to Story if enabled")
     print("\nPress CTRL+C to stop\n")
 
