@@ -577,7 +577,7 @@ def process_script_generation_job(job_id):
                 prompt_text = prompt_text.replace('{topics}', topics) + exclusion_text
         else:
             # Fallback default prompt
-            num_scripts = 15
+            num_scripts = 5
             prompt_text = f"""Generate {num_scripts} viral Facebook Reels scripts in valid JSON format..."""
 
         # Call appropriate AI provider
@@ -871,7 +871,7 @@ def init_db():
                 description TEXT,
                 system_prompt TEXT NOT NULL,
                 topics TEXT,
-                num_scripts INTEGER DEFAULT 10,
+                num_scripts INTEGER DEFAULT 5,
                 is_active BOOLEAN DEFAULT FALSE,
                 is_default BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -889,7 +889,7 @@ def init_db():
                 description TEXT,
                 system_prompt TEXT NOT NULL,
                 topics TEXT,
-                num_scripts INTEGER DEFAULT 10,
+                num_scripts INTEGER DEFAULT 5,
                 is_active BOOLEAN DEFAULT 0,
                 is_default BOOLEAN DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2255,7 +2255,7 @@ def create_prompt():
         description = request.form.get('description', '').strip()
         system_prompt = request.form.get('system_prompt', '').strip()
         topics = request.form.get('topics', '').strip()
-        num_scripts = int(request.form.get('num_scripts', 10))
+        num_scripts = int(request.form.get('num_scripts', 5))
         is_default = True if request.form.get('is_default') == 'on' else False
         
         if not name or not system_prompt:
@@ -2347,7 +2347,7 @@ def edit_prompt(prompt_id):
         description = request.form.get('description', '').strip()
         system_prompt = request.form.get('system_prompt', '').strip()
         topics = request.form.get('topics', '').strip()
-        num_scripts = int(request.form.get('num_scripts', 10))
+        num_scripts = int(request.form.get('num_scripts', 5))
         is_default = True if request.form.get('is_default') == 'on' else False
         
         # If setting as default, unset other defaults
