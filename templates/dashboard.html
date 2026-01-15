@@ -111,7 +111,7 @@
                             ⬇️ Download Video
                         </a>
                         {% if not video.facebook_video_id %}
-                        <a href="{{ url_for('post_video', video_id=video.id) }}" class="btn btn-outline-primary btn-sm"
+                        <a href="{{ url_for('post_video_now', video_id=video.id) }}" class="btn btn-outline-primary btn-sm"
                            onclick="return confirm('Post this video to Facebook?')">
                             📤 Post to Facebook
                         </a>

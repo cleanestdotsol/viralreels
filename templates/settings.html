@@ -58,8 +58,13 @@
                         <label for="claude_api_key" class="form-label">
                             Claude API Key
                         </label>
-                        <input type="text" class="form-control" id="claude_api_key" name="claude_api_key" 
-                               value="{{ api_keys.claude_api_key or '' }}" placeholder="sk-ant-api03-...">
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="claude_api_key" name="claude_api_key"
+                                   value="{{ api_keys.claude_api_key or '' }}" placeholder="sk-ant-api03-...">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('claude_api_key')">
+                                <i class="bi bi-eye" id="claude_api_key_icon"></i>
+                            </button>
+                        </div>
                         <small class="form-text text-muted">
                             Get your key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> ($5 credit)
                         </small>
@@ -71,8 +76,13 @@
                         <label for="openrouter_api_key" class="form-label">
                             OpenRouter API Key (FREE)
                         </label>
-                        <input type="text" class="form-control" id="openrouter_api_key" name="openrouter_api_key"
-                               value="{{ api_keys.openrouter_api_key or '' }}" placeholder="sk-or-...">
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="openrouter_api_key" name="openrouter_api_key"
+                                   value="{{ api_keys.openrouter_api_key or '' }}" placeholder="sk-or-...">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('openrouter_api_key')">
+                                <i class="bi bi-eye" id="openrouter_api_key_icon"></i>
+                            </button>
+                        </div>
                         <small class="form-text text-muted">
                             Get FREE key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> - No credit card needed!
                         </small>
@@ -84,8 +94,13 @@
                         <label for="glm_api_key" class="form-label">
                             GLM Coding Plan API Key (Zhipu AI)
                         </label>
-                        <input type="text" class="form-control" id="glm_api_key" name="glm_api_key"
-                               value="{{ api_keys.glm_api_key or '' }}" placeholder="Your GLM Coding API key">
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="glm_api_key" name="glm_api_key"
+                                   value="{{ api_keys.glm_api_key or '' }}" placeholder="Your GLM Coding API key">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('glm_api_key')">
+                                <i class="bi bi-eye" id="glm_api_key_icon"></i>
+                            </button>
+                        </div>
                         <small class="form-text text-muted">
                             Get your API key at <a href="https://z.ai/subscribe" target="_blank">z.ai/subscribe</a> - Requires GLM Coding Plan subscription
                         </small>
@@ -134,8 +149,13 @@
                                 <label for="facebook_page_token" class="form-label">
                                     Facebook Page Access Token
                                 </label>
-                                <input type="text" class="form-control" id="facebook_page_token" name="facebook_page_token"
-                                       value="{{ api_keys.facebook_page_token or '' }}" placeholder="EAAxxxxx...">
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="facebook_page_token" name="facebook_page_token"
+                                           value="{{ api_keys.facebook_page_token or '' }}" placeholder="EAAxxxxx...">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('facebook_page_token')">
+                                        <i class="bi bi-eye" id="facebook_page_token_icon"></i>
+                                    </button>
+                                </div>
                                 <small class="form-text text-muted">
                                     Make sure this is a <strong>PAGE</strong> access token, not a USER token.
                                 </small>
@@ -166,8 +186,13 @@
                     <label for="elevenlabs_api_key" class="form-label">
                         ElevenLabs API Key (Optional)
                     </label>
-                    <input type="text" class="form-control" id="elevenlabs_api_key" name="elevenlabs_api_key"
-                           value="{{ api_keys.elevenlabs_api_key or '' }}" placeholder="Optional for text-to-speech">
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="elevenlabs_api_key" name="elevenlabs_api_key"
+                               value="{{ api_keys.elevenlabs_api_key or '' }}" placeholder="Optional for text-to-speech">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('elevenlabs_api_key')">
+                            <i class="bi bi-eye" id="elevenlabs_api_key_icon"></i>
+                        </button>
+                    </div>
                     <small class="form-text text-muted">
                         For text-to-speech audio. Get free tier at <a href="https://elevenlabs.io" target="_blank">elevenlabs.io</a>
                     </small>
@@ -246,6 +271,21 @@ function toggleAPIFields() {
     if (openrouterFields) openrouterFields.style.display = (provider === 'openrouter') ? 'block' : 'none';
     if (glmFields) glmFields.style.display = (provider === 'glm') ? 'block' : 'none';
     if (manualInfo) manualInfo.style.display = (provider === 'manual') ? 'block' : 'none';
+}
+
+function togglePasswordVisibility(fieldId) {
+    const input = document.getElementById(fieldId);
+    const icon = document.getElementById(fieldId + '_icon');
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('bi-eye');
+        icon.classList.add('bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('bi-eye-slash');
+        icon.classList.add('bi-eye');
+    }
 }
 
 function checkFacebookToken() {
