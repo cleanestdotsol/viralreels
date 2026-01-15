@@ -1866,22 +1866,54 @@ def generate_glm_token(api_key):
 def validate_script_fields(script):
     """
     Validate that a script object has all required fields.
+    Handles field name variations (title→topic, scenes→facts).
     Returns the script with defaults for missing optional fields.
     Returns None if required fields are missing.
     """
-    required_fields = ['topic', 'hook', 'fact1', 'fact2', 'fact3', 'fact4', 'payoff']
+    # Map field variations to standard names
+    mapped = {}
 
-    # Check all required fields exist
-    for field in required_fields:
-        if field not in script:
-            print(f"[WARNING] Script missing required field: {field}")
+    # Map topic/title
+    if 'topic' in script:
+        mapped['topic'] = script['topic']
+    elif 'title' in script:
+        mapped['topic'] = script['title']
+    else:
+        print(f"[WARNING] Script missing required field: topic/title")
+        return None
+
+    # Hook is required
+    if 'hook' not in script:
+        print(f"[WARNING] Script missing required field: hook")
+        return None
+    mapped['hook'] = script['hook']
+
+    # Map scenes array to fact1-4 + payoff
+    if 'scenes' in script and isinstance(script['scenes'], list):
+        scenes = script['scenes']
+        mapped['fact1'] = str(scenes[0]) if len(scenes) > 0 else ''
+        mapped['fact2'] = str(scenes[1]) if len(scenes) > 1 else ''
+        mapped['fact3'] = str(scenes[2]) if len(scenes) > 2 else ''
+        mapped['fact4'] = str(scenes[3]) if len(scenes) > 3 else ''
+        mapped['payoff'] = str(scenes[-1]) if len(scenes) > 4 else 'Mind blown! 🤯'
+    else:
+        # Use fact fields directly
+        for i in range(1, 5):
+            field = f'fact{i}'
+            if field not in script:
+                print(f"[WARNING] Script missing required field: {field}")
+                return None
+            mapped[field] = script[field]
+
+        if 'payoff' not in script:
+            print(f"[WARNING] Script missing required field: payoff")
             return None
+        mapped['payoff'] = script['payoff']
 
     # Add default for viral_score if missing
-    if 'viral_score' not in script:
-        script['viral_score'] = 0.5
+    mapped['viral_score'] = script.get('viral_score', 0.5)
 
-    return script
+    return mapped
 
 def extract_json_safely(response_text):
     """
@@ -2016,21 +2048,36 @@ def extract_json_safely(response_text):
                     # Try to parse as JSON
                     obj = json.loads(obj_str)
 
-                    # Fill in missing fields with defaults
-                    defaults = {
-                        'topic': 'Unknown Topic',
-                        'hook': 'Did you know...?',
-                        'fact1': '',
-                        'fact2': '',
-                        'fact3': '',
-                        'fact4': '',
-                        'payoff': 'Mind blown! 🤯',
-                        'viral_score': 0.5
-                    }
+                    # Map GLM's response fields to our expected format
+                    mapped = {}
+                    if 'topic' in obj:
+                        mapped['topic'] = obj['topic']
+                    elif 'title' in obj:
+                        mapped['topic'] = obj['title']
+                    else:
+                        mapped['topic'] = 'Unknown Topic'
 
-                    # Merge with actual values
-                    defaults.update(obj)
-                    scripts.append(defaults)
+                    mapped['hook'] = obj.get('hook', 'Did you know...?')
+
+                    # If GLM returned scenes, convert them to facts
+                    if 'scenes' in obj and isinstance(obj['scenes'], list):
+                        scenes = obj['scenes'][:4]  # Take first 4 scenes
+                        mapped['fact1'] = scenes[0] if len(scenes) > 0 else ''
+                        mapped['fact2'] = scenes[1] if len(scenes) > 1 else ''
+                        mapped['fact3'] = scenes[2] if len(scenes) > 2 else ''
+                        mapped['fact4'] = scenes[3] if len(scenes) > 3 else ''
+                        # Use last scene as payoff
+                        mapped['payoff'] = scenes[-1] if scenes else 'Mind blown! 🤯'
+                    else:
+                        # Use fact fields if they exist
+                        mapped['fact1'] = obj.get('fact1', '')
+                        mapped['fact2'] = obj.get('fact2', '')
+                        mapped['fact3'] = obj.get('fact3', '')
+                        mapped['fact4'] = obj.get('fact4', '')
+                        mapped['payoff'] = obj.get('payoff', 'Mind blown! 🤯')
+
+                    mapped['viral_score'] = obj.get('viral_score', 0.5)
+                    scripts.append(mapped)
                 except:
                     continue
 
