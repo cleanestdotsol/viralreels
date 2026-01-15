@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["ffmpeg", "ffmpeg-full", "ffprobe"]
+nixPkgs = ["ffmpeg"]
 
 [phases.build]
 cmds = ["pip install --no-cache-dir -r requirements.txt"]
