@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+ULTRAWORK_SUMMARY.md
+*.md
+
+# Database (local development)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+debug.log
+error_log
+video_generation.log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Flask session
+flask_session/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+temp_slides/
+*.tmp
+
+# Railway specific
+.railway/

@@ -109,6 +109,7 @@ def start_scheduler():
         print("  - Scheduled posts: checks every 60 seconds")
         print("  - Video queue: processes every 3 hours")
         print("  - Script generation: processes every 30 seconds")
+        print("  - Video generation queue: processes every 30 seconds")
 
 def post_scheduled_videos():
     """
@@ -3845,6 +3846,7 @@ if __name__ == '__main__':
     print("  - Scheduled posts: checks every 60 seconds")
     print("  - Video queue: processes every 3 hours")
     print("  - Script generation: processes every 30 seconds")
+    print("  - Video generation queue: processes every 30 seconds")
     print("  - Auto-shares to Story if enabled")
     print("\nPress CTRL+C to stop\n")
 
