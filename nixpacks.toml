@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["ffmpeg"]
+nixPkgs = ["python3", "ffmpeg", "gcc", "postgresql_16.dev"]
 
 [phases.build]
 cmds = ["pip install --no-cache-dir -r requirements.txt"]
