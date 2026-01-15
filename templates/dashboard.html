@@ -23,6 +23,26 @@
         </div>
     </div>
 
+    {% if active_video_jobs %}
+    <div class="alert alert-info alert-dismissible" role="alert">
+        <h5 class="alert-heading">🎬 Video Generation in Progress</h5>
+        <p class="mb-2">You have {{ active_video_jobs|length }} video(s) being generated:</p>
+        <ul class="mb-0">
+            {% for job in active_video_jobs %}
+            <li>
+                <strong>{{ job.topic }}</strong> -
+                {% if job.status == 'pending' %}
+                <span class="badge bg-secondary">Queued</span>
+                {% elif job.status == 'processing' %}
+                <span class="badge bg-warning">Processing</span>
+                {% endif %}
+                <a href="/video-status/{{ job.id }}" class="btn btn-sm btn-outline-primary ms-2">View Status</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     {% if scripts %}
     <div class="card mb-4">
         <div class="card-header">

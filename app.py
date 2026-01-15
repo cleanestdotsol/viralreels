@@ -1533,10 +1533,19 @@ def logout():
 def dashboard():
     """Main dashboard"""
     conn = get_db()
-    
+
     # Get user info
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    
+
+    # Get active video generation jobs
+    active_video_jobs = conn.execute('''
+        SELECT j.id, j.status, s.topic
+        FROM video_generation_jobs j
+        JOIN scripts s ON j.script_id = s.id
+        WHERE j.user_id = ? AND j.status IN ('pending', 'processing')
+        ORDER BY j.created_at DESC
+    ''', (session['user_id'],)).fetchall()
+
     # Get recent videos
     videos = conn.execute('''
         SELECT v.*, s.topic, s.hook
@@ -1546,7 +1555,7 @@ def dashboard():
         ORDER BY v.created_at DESC
         LIMIT 10
     ''', (session['user_id'],)).fetchall()
-    
+
     # Get recent scripts (last 100 to avoid timezone issues)
     scripts = conn.execute('''
         SELECT * FROM scripts
@@ -1554,13 +1563,14 @@ def dashboard():
         ORDER BY created_at DESC
         LIMIT 100
     ''', (session['user_id'],)).fetchall()
-    
+
     conn.close()
-    
-    return render_template('dashboard.html', 
-                          user=user, 
-                          videos=videos, 
-                          scripts=scripts)
+
+    return render_template('dashboard.html',
+                          user=user,
+                          videos=videos,
+                          scripts=scripts,
+                          active_video_jobs=active_video_jobs)
 
 @app.route('/facebook/auth')
 @login_required
