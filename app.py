@@ -765,7 +765,7 @@ def process_video_generation_job(job_id):
         job = conn.execute('''
             SELECT j.*, s.topic, s.hook, s.fact1, s.fact2, s.fact3, s.fact4, s.payoff,
                    ak.elevenlabs_api_key, ak.facebook_page_token, ak.facebook_page_id,
-                   ak.auto_share_to_story
+                   ak.auto_share_to_story, ak.facebook_token_expires
             FROM video_generation_jobs j
             JOIN scripts s ON j.script_id = s.id
             JOIN api_keys ak ON j.user_id = ak.user_id
@@ -834,22 +834,73 @@ def process_video_generation_job(job_id):
             facebook_video_id = None
             if api_keys.get('facebook_page_token') and api_keys.get('facebook_page_id'):
                 try:
-                    print(f"[VIDEO_JOB] Posting to Facebook...")
-                    facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
+                    # Check token expiry before attempting to post
+                    token_expires = job.get('facebook_token_expires')
+                    if token_expires:
+                        import time
+                        seconds_left = token_expires - int(time.time())
+                        days_left = max(0, seconds_left // (24 * 60 * 60))
 
-                    if facebook_video_id:
-                        print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
+                        if days_left == 0:
+                            # Token expired - skip posting
+                            print(f"[VIDEO_JOB] Facebook token expired - skipping post")
+                            print(f"[VIDEO_JOB] Please refresh your token in Settings → Connect Facebook Page")
+                            facebook_video_id = None  # Explicitly set to None
+                        elif days_left < 7:
+                            # Token expiring soon - post but warn
+                            print(f"[VIDEO_JOB] Facebook token expires in {days_left} days - posting now")
+                            print(f"[VIDEO_JOB] Please refresh your token soon in Settings")
+                            facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
 
-                        # Update video record with Facebook video ID
-                        conn.execute('''
-                            UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
-                            WHERE id = ?
-                        ''', (facebook_video_id, video_record_id))
+                            if facebook_video_id:
+                                print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
 
-                        # Auto-share to Story if enabled
-                        if api_keys.get('auto_share_to_story'):
-                            share_reel_to_story(facebook_video_id, api_keys)
-                            print(f"[VIDEO_JOB] Shared to Facebook Story")
+                                # Update video record with Facebook video ID
+                                conn.execute('''
+                                    UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
+                                    WHERE id = ?
+                                ''', (facebook_video_id, video_record_id))
+
+                                # Auto-share to Story if enabled
+                                if api_keys.get('auto_share_to_story'):
+                                    share_reel_to_story(facebook_video_id, api_keys)
+                                    print(f"[VIDEO_JOB] Shared to Facebook Story")
+                        else:
+                            # Token valid - post normally
+                            print(f"[VIDEO_JOB] Posting to Facebook...")
+                            facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
+
+                            if facebook_video_id:
+                                print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
+
+                                # Update video record with Facebook video ID
+                                conn.execute('''
+                                    UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
+                                    WHERE id = ?
+                                ''', (facebook_video_id, video_record_id))
+
+                                # Auto-share to Story if enabled
+                                if api_keys.get('auto_share_to_story'):
+                                    share_reel_to_story(facebook_video_id, api_keys)
+                                    print(f"[VIDEO_JOB] Shared to Facebook Story")
+                    else:
+                        # No expiry info - try posting anyway
+                        print(f"[VIDEO_JOB] Posting to Facebook...")
+                        facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
+
+                        if facebook_video_id:
+                            print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
+
+                            # Update video record with Facebook video ID
+                            conn.execute('''
+                                UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
+                                WHERE id = ?
+                            ''', (facebook_video_id, video_record_id))
+
+                            # Auto-share to Story if enabled
+                            if api_keys.get('auto_share_to_story'):
+                                share_reel_to_story(facebook_video_id, api_keys)
+                                print(f"[VIDEO_JOB] Shared to Facebook Story")
                 except Exception as e:
                     print(f"[VIDEO_JOB] Facebook posting failed: {e}")
                     import traceback
@@ -1597,6 +1648,60 @@ def dashboard():
                           videos=videos,
                           scripts=scripts,
                           active_video_jobs=active_video_jobs)
+
+@app.route('/video/<int:video_id>')
+@login_required
+def serve_video(video_id):
+    """Serve video file for viewing or downloading"""
+    conn = get_db()
+    video = conn.execute('''
+        SELECT v.*, s.topic
+        FROM videos v
+        JOIN scripts s ON v.script_id = s.id
+        WHERE v.id = ? AND v.user_id = ?
+    ''', (video_id, session['user_id'])).fetchone()
+    conn.close()
+
+    if not video or not video['file_path']:
+        return "Video not found", 404
+
+    # Check if file exists
+    if not os.path.exists(video['file_path']):
+        return "Video file not found on server", 404
+
+    # Get filename for download
+    filename = os.path.basename(video['file_path'])
+    topic_slug = video['topic'].lower().replace(' ', '_').replace('/', '_')[:50]
+    download_name = f"{topic_slug}.mp4"
+
+    return send_file(video['file_path'], as_attachment=False, download_name=download_name)
+
+@app.route('/video/<int:video_id>/download')
+@login_required
+def download_video(video_id):
+    """Download video file"""
+    conn = get_db()
+    video = conn.execute('''
+        SELECT v.*, s.topic
+        FROM videos v
+        JOIN scripts s ON v.script_id = s.id
+        WHERE v.id = ? AND v.user_id = ?
+    ''', (video_id, session['user_id'])).fetchone()
+    conn.close()
+
+    if not video or not video['file_path']:
+        return "Video not found", 404
+
+    # Check if file exists
+    if not os.path.exists(video['file_path']):
+        return "Video file not found on server", 404
+
+    # Get filename for download
+    filename = os.path.basename(video['file_path'])
+    topic_slug = video['topic'].lower().replace(' ', '_').replace('/', '_')[:50]
+    download_name = f"{topic_slug}.mp4"
+
+    return send_file(video['file_path'], as_attachment=True, download_name=download_name)
 
 @app.route('/facebook/auth')
 @login_required
