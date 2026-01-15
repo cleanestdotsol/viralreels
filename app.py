@@ -992,6 +992,7 @@ def init_db():
                 facebook_page_token TEXT,
                 facebook_page_id TEXT,
                 elevenlabs_api_key TEXT,
+                elevenlabs_enabled BOOLEAN DEFAULT TRUE,
                 auto_share_to_story BOOLEAN DEFAULT TRUE,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
@@ -1040,6 +1041,7 @@ def init_db():
                 facebook_page_token TEXT,
                 facebook_page_id TEXT,
                 elevenlabs_api_key TEXT,
+                elevenlabs_enabled BOOLEAN DEFAULT 1,
                 auto_share_to_story BOOLEAN DEFAULT 1,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
@@ -1288,6 +1290,29 @@ def init_db():
     cursor.execute(video_jobs_sql)
 
     conn.commit()
+
+    # Migration: Add elevenlabs_enabled column if it doesn't exist
+    try:
+        if is_postgres:
+            cursor.execute('''
+                ALTER TABLE api_keys
+                ADD COLUMN IF NOT EXISTS elevenlabs_enabled BOOLEAN DEFAULT TRUE
+            ''')
+        else:
+            # SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we check PRAGMA
+            cursor.execute("PRAGMA table_info(api_keys)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'elevenlabs_enabled' not in columns:
+                cursor.execute('''
+                    ALTER TABLE api_keys
+                    ADD COLUMN elevenlabs_enabled BOOLEAN DEFAULT 1
+                ''')
+                print("[MIGRATION] Added elevenlabs_enabled column to api_keys table")
+        conn.commit()
+    except Exception as e:
+        # Column might already exist or migration already ran
+        print(f"[INFO] Migration check: {e}")
+
     conn.close()
     print("[OK] Database initialized")
 
@@ -1812,6 +1837,7 @@ def settings():
         fb_token = request.form.get('facebook_page_token', '').strip()
         fb_page_id = request.form.get('facebook_page_id', '').strip()
         elevenlabs_key = request.form.get('elevenlabs_api_key', '').strip()
+        elevenlabs_enabled = True if request.form.get('elevenlabs_enabled') == 'on' else False
         auto_share = True if request.form.get('auto_share_to_story') == 'on' else False
 
         conn.execute('''
@@ -1823,9 +1849,10 @@ def settings():
                 facebook_page_token = ?,
                 facebook_page_id = ?,
                 elevenlabs_api_key = ?,
+                elevenlabs_enabled = ?,
                 auto_share_to_story = ?
             WHERE user_id = ?
-        ''', (ai_provider, claude_key, openrouter_key, glm_key, fb_token, fb_page_id, elevenlabs_key, auto_share, session['user_id']))
+        ''', (ai_provider, claude_key, openrouter_key, glm_key, fb_token, fb_page_id, elevenlabs_key, elevenlabs_enabled, auto_share, session['user_id']))
         
         conn.commit()
         flash('Settings saved successfully!', 'success')
@@ -3377,10 +3404,10 @@ def create_video_ffmpeg(script, output_path, api_keys):
         log(f"  Output: {output_path}")
         log(f"{'='*60}\n")
 
-        # Generate voiceover if ElevenLabs key is available
+        # Generate voiceover if ElevenLabs key is available AND enabled
         section_durations = None
         try:
-            if api_keys and api_keys.get('elevenlabs_api_key'):
+            if api_keys and api_keys.get('elevenlabs_api_key') and api_keys.get('elevenlabs_enabled', True):
                 audio_path = output_path.replace('.mp4', '.mp3')
                 log(f"  [TTS] Starting voiceover generation...")
                 section_durations = generate_voiceover(script, audio_path, api_keys['elevenlabs_api_key'])
@@ -3389,6 +3416,8 @@ def create_video_ffmpeg(script, output_path, api_keys):
                     log(f"  [OK] Generated voiceover ({total_duration:.2f}s)")
                 else:
                     log(f"  [INFO] Skipping voiceover (generation failed)")
+            elif api_keys and api_keys.get('elevenlabs_api_key') and not api_keys.get('elevenlabs_enabled', True):
+                log(f"  [INFO] ElevenLabs disabled in settings - skipping voiceover")
         except Exception as e:
             log(f"  [ERROR] Voiceover generation failed: {e}")
             import traceback

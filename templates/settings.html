@@ -166,10 +166,21 @@
                     <label for="elevenlabs_api_key" class="form-label">
                         ElevenLabs API Key (Optional)
                     </label>
-                    <input type="text" class="form-control" id="elevenlabs_api_key" name="elevenlabs_api_key" 
+                    <input type="text" class="form-control" id="elevenlabs_api_key" name="elevenlabs_api_key"
                            value="{{ api_keys.elevenlabs_api_key or '' }}" placeholder="Optional for text-to-speech">
                     <small class="form-text text-muted">
                         For text-to-speech audio. Get free tier at <a href="https://elevenlabs.io" target="_blank">elevenlabs.io</a>
+                    </small>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="elevenlabs_enabled" name="elevenlabs_enabled"
+                           {% if api_keys.get('elevenlabs_enabled', True) %}checked{% endif %}>
+                    <label class="form-check-label" for="elevenlabs_enabled">
+                        <strong>Enable ElevenLabs Text-to-Speech</strong>
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        <strong>Turn this OFF to save tokens while debugging video generation</strong>. Your API key will be saved but not used until you re-enable this.
                     </small>
                 </div>
 
