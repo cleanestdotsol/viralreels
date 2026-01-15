@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CuriosityFlash - Invoice</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #e8e8e8;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .invoice {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fdfdf8;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            transform: rotate(-0.3deg);
+            filter: contrast(0.95) brightness(1.02) saturate(0.9);
+        }
+
+        /* Scan noise overlay */
+        .invoice::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.01) 2px,
+                    rgba(0, 0, 0, 0.01) 4px
+                );
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        /* Noise grain texture */
+        .invoice::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #333;
+            padding-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .business-info h1 {
+            font-size: 36px;
+            color: #2a2a2a;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-shadow: 0 0 1px rgba(0,0,0,0.1);
+        }
+
+        .business-info .contact {
+            font-size: 12px;
+            color: #4a4a4a;
+            line-height: 1.4;
+        }
+
+        .invoice-details {
+            text-align: right;
+        }
+
+        .invoice-details h2 {
+            font-size: 24px;
+            color: #2a2a2a;
+            margin-bottom: 15px;
+        }
+
+        .invoice-details p {
+            font-size: 14px;
+            color: #3a3a3a;
+            margin: 5px 0;
+        }
+
+        .content-area {
+            min-height: 400px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Slight vignette effect */
+        .invoice {
+            box-shadow:
+                inset 0 0 100px rgba(0,0,0,0.03),
+                0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Add some subtle discoloration patches */
+        .invoice {
+            background:
+                linear-gradient(135deg, rgba(255,253,240,0.1) 0%, transparent 50%),
+                linear-gradient(225deg, rgba(240,235,220,0.05) 0%, transparent 50%),
+                #fdfdf8;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .invoice {
+                box-shadow: none;
+                padding: 20px;
+                transform: rotate(0deg);
+            }
+
+            .invoice::before,
+            .invoice::after {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice">
+        <div class="invoice-header">
+            <div class="business-info">
+                <h1>CuriosityFlash</h1>
+                <p class="contact">
+                    PO Box 2040, Atascadero, CA 93423<br>
+                    Phone: +18052421312
+                </p>
+            </div>
+            <div class="invoice-details">
+                <h2>Invoice</h2>
+                <p><strong>Date:</strong> January 15, 2025</p>
+                <p><strong>Invoice Number:</strong> CF-2025-001</p>
+                <p><strong>Type:</strong> Billing</p>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- Content area left blank for invoice items -->
+        </div>
+    </div>
+</body>
+</html>

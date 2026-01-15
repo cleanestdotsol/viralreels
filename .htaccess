@@ -1,0 +1,38 @@
+# Pass all requests to Flask app
+PassengerAppRoot /home/yourusername/public_html
+PassengerAppType python
+PassengerStartupFile passenger_wsgi.py
+PassengerPython /usr/bin/python3
+
+# Enable URL rewriting
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  # Redirect HTTP to HTTPS
+  RewriteCond %{HTTPS} off
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Disable directory browsing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^\.">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+<FilesMatch "(app\.py|passenger_wsgi\.py|\.env|\.production|DEPLOYMENT\.md|generate_secret\.py)">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# Additional .env protection
+<Files .env>
+  Require all denied
+</Files>
+
+# Protect backup files
+<FilesMatch "\.(bak|backup|old|sql|log)$">
+  Require all denied
+</Files>

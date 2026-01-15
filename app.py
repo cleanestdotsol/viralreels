@@ -749,6 +749,214 @@ scheduler.add_job(
 )
 
 # ============================================================================
+# VIDEO GENERATION BACKGROUND JOB PROCESSOR
+# ============================================================================
+
+def process_video_generation_job(job_id):
+    """
+    Background job that processes a single video generation request
+    Runs in APScheduler thread, safe from Railway HTTP timeouts
+    """
+    try:
+        conn = get_db()
+
+        # Get job details with all necessary data
+        job = conn.execute('''
+            SELECT j.*, s.topic, s.hook, s.fact1, s.fact2, s.fact3, s.fact4, s.payoff,
+                   ak.elevenlabs_api_key, ak.facebook_page_token, ak.facebook_page_id,
+                   ak.auto_share_to_story
+            FROM video_generation_jobs j
+            JOIN scripts s ON j.script_id = s.id
+            JOIN api_keys ak ON j.user_id = ak.user_id
+            WHERE j.id = ?
+        ''', (job_id,)).fetchone()
+
+        if not job:
+            print(f"[VIDEO_JOB] Job #{job_id} not found")
+            conn.close()
+            return
+
+        # Update status to processing
+        conn.execute('''
+            UPDATE video_generation_jobs
+            SET status = 'processing', started_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (job_id,))
+        conn.commit()
+
+        print(f"[VIDEO_JOB] Processing job #{job_id} - Script: {job['topic']}")
+
+        # Create video directory
+        import os
+        user_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(job['user_id']))
+        os.makedirs(user_dir, exist_ok=True)
+
+        video_filename = f"video_{job['script_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+        video_path = os.path.join(user_dir, video_filename)
+
+        # Build script dict for FFmpeg function
+        script = {
+            'topic': job['topic'],
+            'hook': job['hook'],
+            'fact1': job['fact1'],
+            'fact2': job['fact2'],
+            'fact3': job['fact3'],
+            'fact4': job['fact4'],
+            'payoff': job['payoff']
+        }
+
+        # Build API keys dict
+        api_keys = {
+            'elevenlabs_api_key': job['elevenlabs_api_key'],
+            'facebook_page_token': job['facebook_page_token'],
+            'facebook_page_id': job['facebook_page_id'],
+            'auto_share_to_story': job['auto_share_to_story']
+        }
+
+        print(f"[VIDEO_JOB] Starting FFmpeg video generation...")
+
+        # Generate video with FFmpeg
+        success = create_video_ffmpeg(script, video_path, api_keys)
+
+        if success:
+            print(f"[VIDEO_JOB] Video generated successfully: {video_path}")
+
+            # Save video record
+            cursor = conn.execute('''
+                INSERT INTO videos (user_id, script_id, file_path, status)
+                VALUES (?, ?, ?, 'completed')
+            ''', (job['user_id'], job['script_id'], video_path))
+
+            video_record_id = cursor.lastrowid
+
+            # Post to Facebook if credentials available
+            facebook_video_id = None
+            if api_keys.get('facebook_page_token') and api_keys.get('facebook_page_id'):
+                try:
+                    print(f"[VIDEO_JOB] Posting to Facebook...")
+                    facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
+
+                    if facebook_video_id:
+                        print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
+
+                        # Update video record with Facebook video ID
+                        conn.execute('''
+                            UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        ''', (facebook_video_id, video_record_id))
+
+                        # Auto-share to Story if enabled
+                        if api_keys.get('auto_share_to_story'):
+                            share_reel_to_story(facebook_video_id, api_keys)
+                            print(f"[VIDEO_JOB] Shared to Facebook Story")
+                except Exception as e:
+                    print(f"[VIDEO_JOB] Facebook posting failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+            # Update user's video count
+            conn.execute('''
+                UPDATE users SET videos_generated = videos_generated + 1
+                WHERE id = ?
+            ''', (job['user_id'],))
+
+            # Unselect script
+            conn.execute('UPDATE scripts SET selected = FALSE WHERE id = ?', (job['script_id'],))
+
+            # Mark job complete
+            conn.execute('''
+                UPDATE video_generation_jobs
+                SET status = 'completed', video_path = ?, facebook_video_id = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (video_path, facebook_video_id, job_id))
+
+            conn.commit()
+            print(f"[VIDEO_JOB] Job #{job_id} completed successfully")
+
+        else:
+            # Video generation failed
+            error_msg = "FFmpeg video generation failed - see video_generation.log"
+            conn.execute('''
+                UPDATE video_generation_jobs
+                SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (error_msg, job_id))
+            conn.commit()
+            print(f"[VIDEO_JOB] Job #{job_id} failed: {error_msg}")
+
+        conn.close()
+
+    except Exception as e:
+        print(f"[VIDEO_JOB ERROR] Job #{job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+        # Mark job as failed
+        try:
+            conn = get_db()
+            conn.execute('''
+                UPDATE video_generation_jobs
+                SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (str(e)[:1000], job_id))  # Truncate error to fit in column
+            conn.commit()
+            conn.close()
+        except:
+            pass
+
+
+def process_video_generation_queue():
+    """
+    Background job that checks for pending video generation jobs
+    This runs automatically every 30 seconds via APScheduler
+    """
+    try:
+        print("\n[VIDEO_QUEUE] Checking for pending jobs...")
+        conn = get_db()
+
+        # Find all pending jobs (process up to 2 at a time - video is resource-intensive)
+        pending_jobs = conn.execute('''
+            SELECT id FROM video_generation_jobs
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT 2
+        ''').fetchall()
+
+        if not pending_jobs:
+            conn.close()
+            return
+
+        print(f"[VIDEO_QUEUE] Found {len(pending_jobs)} pending job(s)")
+
+        # Process each job in a separate thread
+        import threading
+        for job in pending_jobs:
+            print(f"[VIDEO_QUEUE] Starting job #{job['id']}")
+            # Run in background thread to avoid blocking the scheduler
+            threading.Thread(
+                target=process_video_generation_job,
+                args=(job['id'],),
+                daemon=True
+            ).start()
+
+        conn.close()
+
+    except Exception as e:
+        print(f"[VIDEO_QUEUE ERROR] {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
+# Add video generation job processor to scheduler (runs every 30 seconds)
+scheduler.add_job(
+    func=process_video_generation_queue,
+    trigger=IntervalTrigger(seconds=30),
+    id='process_video_generation_queue',
+    name='Process video generation queue',
+    replace_existing=True
+)
+
+# ============================================================================
 # DATABASE SETUP
 # ============================================================================
 
@@ -1027,6 +1235,22 @@ def init_db():
                 FOREIGN KEY (prompt_id) REFERENCES prompts(id)
             )
         '''
+        video_jobs_sql = '''
+            CREATE TABLE IF NOT EXISTS video_generation_jobs (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                script_id INTEGER NOT NULL,
+                status TEXT DEFAULT 'pending',
+                video_path TEXT,
+                facebook_video_id TEXT,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            )
+        '''
     else:
         script_jobs_sql = '''
             CREATE TABLE IF NOT EXISTS script_generation_jobs (
@@ -1043,7 +1267,24 @@ def init_db():
                 FOREIGN KEY (prompt_id) REFERENCES prompts(id)
             )
         '''
+        video_jobs_sql = '''
+            CREATE TABLE IF NOT EXISTS video_generation_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                script_id INTEGER NOT NULL,
+                status TEXT DEFAULT 'pending',
+                video_path TEXT,
+                facebook_video_id TEXT,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            )
+        '''
     cursor.execute(script_jobs_sql)
+    cursor.execute(video_jobs_sql)
 
     conn.commit()
     conn.close()
@@ -2569,112 +2810,92 @@ def create_videos():
 @login_required
 @check_video_limit
 def generate_video(script_id):
-    """Generate a single video using FFmpeg"""
-    
+    """Queue a video generation job (async) - returns immediately to avoid Railway timeout"""
+
     conn = get_db()
-    
-    # Get script
+
+    # Get script to verify it exists
     script = conn.execute('SELECT * FROM scripts WHERE id = ? AND user_id = ?',
                          (script_id, session['user_id'])).fetchone()
 
     if not script:
+        conn.close()
         return jsonify({'error': 'Script not found'}), 404
 
-    # Convert sqlite3.Row to dict for easier access
-    script = dict(script)
-    
-    # Get API keys
-    api_keys = conn.execute('SELECT * FROM api_keys WHERE user_id = ?',
-                           (session['user_id'],)).fetchone()
+    # Create video generation job
+    cursor = conn.execute('''
+        INSERT INTO video_generation_jobs (user_id, script_id, status)
+        VALUES (?, ?, 'pending')
+    ''', (session['user_id'], script_id))
 
-    # Convert api_keys to dict if it exists, otherwise use None
-    api_keys = dict(api_keys) if api_keys else None
-    
-    # Create video directory
-    user_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(session['user_id']))
-    os.makedirs(user_dir, exist_ok=True)
-    
-    video_filename = f"video_{script_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-    video_path = os.path.join(user_dir, video_filename)
-    
-    try:
-        # Log to file for debugging
-        with open('video_generation.log', 'a', encoding='utf-8') as log:
-            log.write(f"\n{'='*60}\n")
-            log.write(f"[ROUTE] /generate-video/{script_id} called at {datetime.now()}\n")
-            log.write(f"  Script: {script}\n")
-            log.write(f"  Video path: {video_path}\n")
-            log.write(f"  API keys: {api_keys}\n")
-            log.write(f"  About to call create_video_ffmpeg...\n")
-            log.write(f"{'='*60}\n")
+    job_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
 
-        # Generate video with FFmpeg
-        success = create_video_ffmpeg(script, video_path, api_keys)
+    print(f"[VIDEO_JOB] Created job #{job_id} for script #{script_id}")
 
-        if success:
-            # Save video record
-            cursor = conn.execute('''
-                INSERT INTO videos (user_id, script_id, file_path, status)
-                VALUES (?, ?, ?, 'completed')
-            ''', (session['user_id'], script_id, video_path))
+    # Return immediately with job ID
+    return jsonify({
+        'success': True,
+        'message': 'Video generation queued',
+        'job_id': job_id,
+        'redirect_url': f'/video-status/{job_id}'
+    })
 
-            video_record_id = cursor.lastrowid
 
-            # Post to Facebook if credentials available
-            facebook_video_id = None
-            if api_keys and api_keys['facebook_page_token'] and api_keys['facebook_page_id']:
-                # Note: post_to_facebook needs to be called with different signature
-                # We'll update it to accept api_keys dict
-                facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
+@app.route('/video-status/<int:job_id>')
+@login_required
+def video_status(job_id):
+    """Show video generation status page with polling"""
 
-                if facebook_video_id:
-                    # Update video record with Facebook video ID
-                    conn.execute('''
-                        UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                    ''', (facebook_video_id, video_record_id))
+    conn = get_db()
 
-                    # Auto-share to Story if enabled
-                    if api_keys['auto_share_to_story']:
-                        share_reel_to_story(facebook_video_id, api_keys)
+    # Get job details
+    job = conn.execute('''
+        SELECT j.*, s.topic, s.hook
+        FROM video_generation_jobs j
+        JOIN scripts s ON j.script_id = s.id
+        WHERE j.id = ? AND j.user_id = ?
+    ''', (job_id, session['user_id'])).fetchone()
 
-            # Update user's video count
-            conn.execute('''
-                UPDATE users SET videos_generated = videos_generated + 1
-                WHERE id = ?
-            ''', (session['user_id'],))
+    conn.close()
 
-            # Unselect script
-            conn.execute('UPDATE scripts SET selected = False WHERE id = ?', (script_id,))
+    if not job:
+        flash('Video generation job not found.', 'danger')
+        return redirect(url_for('dashboard'))
 
-            conn.commit()
+    return render_template('video_generation_status.html', job=job)
 
-            return jsonify({
-                'success': True,
-                'message': 'Video created and posted successfully!',
-                'video_path': video_path,
-                'facebook_video_id': facebook_video_id
-            })
-        else:
-            return jsonify({'error': 'Video generation failed - check console logs for details'}), 500
 
-    except Exception as e:
-        # Log the full traceback for debugging
-        import traceback
-        error_details = f"{str(e)}\n{traceback.format_exc()}"
+@app.route('/api/check-video-status/<int:job_id>')
+@login_required
+def check_video_status(job_id):
+    """API endpoint to check video generation job status (for polling)"""
 
-        # Write to log file
-        with open('video_generation.log', 'a', encoding='utf-8') as log:
-            log.write(f"\n{'='*60}\n")
-            log.write(f"[ERROR] Exception in /generate-video/{script_id}\n")
-            log.write(f"  Error: {str(e)}\n")
-            log.write(f"  Traceback:\n{traceback.format_exc()}\n")
-            log.write(f"{'='*60}\n")
+    conn = get_db()
 
-        print(f"[ERROR] Video generation exception:\n{error_details}")
-        return jsonify({'error': f'Video generation error: {str(e)}'}), 500
-    finally:
-        conn.close()
+    # Get job status
+    job = conn.execute('''
+        SELECT id, status, video_path, facebook_video_id, error_message,
+               started_at, completed_at
+        FROM video_generation_jobs
+        WHERE id = ? AND user_id = ?
+    ''', (job_id, session['user_id'])).fetchone()
+
+    conn.close()
+
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    return jsonify({
+        'id': job['id'],
+        'status': job['status'],
+        'video_path': job['video_path'],
+        'facebook_video_id': job['facebook_video_id'],
+        'error_message': job['error_message'],
+        'started_at': str(job['started_at']) if job['started_at'] else None,
+        'completed_at': str(job['completed_at']) if job['completed_at'] else None
+    })
 
 def post_to_facebook_with_keys(video_path, script, api_keys):
     """Upload video to Facebook Page using api_keys dict"""
