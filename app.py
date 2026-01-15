@@ -2784,6 +2784,14 @@ def clear_scripts():
 
     conn = get_db()
 
+    # Delete video generation jobs first (foreign key constraint)
+    conn.execute('''
+        DELETE FROM video_generation_jobs
+        WHERE script_id IN (
+            SELECT id FROM scripts WHERE user_id = ?
+        )
+    ''', (session['user_id'],))
+
     # Delete all scripts for this user
     result = conn.execute('DELETE FROM scripts WHERE user_id = ?', (session['user_id'],))
     deleted_count = result.rowcount
