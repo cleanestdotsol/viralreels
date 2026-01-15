@@ -3494,6 +3494,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Use absolute path for FFmpeg to avoid file not found errors
                 slide_ass_abs = os.path.abspath(slide_ass_path).replace('\\', '/')
 
+                # Log ASS file details for debugging
+                log(f"    [DEBUG] ASS file path: {slide_ass_abs}")
+                log(f"    [DEBUG] Wrapped text: {wrapped_text}")
+                log(f"    [DEBUG] Text length: {len(wrapped_text)} chars")
+
                 if section_audio and os.path.exists(section_audio):
                     # With audio - use audio duration + padding
                     cmd = [
@@ -3524,6 +3529,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         slide_video_path
                     ]
 
+                # Log FFmpeg command for debugging
+                log(f"    [DEBUG] FFmpeg command: {' '.join(cmd)}")
+
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
                 if result.returncode == 0:
@@ -3535,7 +3543,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     except:
                         pass
                 else:
-                    log(f"    [ERROR] FFmpeg error for {section}: {result.stderr[-200:]}")
+                    # Log FULL stderr for debugging (not just last 200 chars)
+                    log(f"    [ERROR] FFmpeg error for {section}")
+                    log(f"    [ERROR] Return code: {result.returncode}")
+                    log(f"    [ERROR] STDOUT: {result.stdout[-500:]}")
+                    log(f"    [ERROR] STDERR: {result.stderr}")
                     # Clean up and continue
                     try:
                         os.remove(slide_ass_path)
