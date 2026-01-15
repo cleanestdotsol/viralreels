@@ -50,3 +50,4 @@ temp_slides/
 
 # Railway specific
 .railway/
+nixpacks.toml
