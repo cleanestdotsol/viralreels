@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>📹 All Videos</h2>
+            <p class="text-muted">Manage your generated videos</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/dashboard" class="btn btn-outline-secondary">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    {% if videos %}
+    <div class="row">
+        {% for video in videos %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ video.topic }}</h5>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Created: {{ video.created_at }}<br>
+                            {% if video.facebook_video_id %}
+                            <span class="badge bg-success">Posted to Facebook ✓</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Not posted</span>
+                            {% endif %}
+                        </small>
+                    </p>
+                    <p class="card-text">
+                        <small>🎣 {{ video.hook[:80] }}{% if video.hook|length > 80 %}...{% endif %}</small>
+                    </p>
+                    <div class="ratio ratio-9x16 mb-3" style="max-width: 240px; margin: 0 auto;">
+                        <video controls preload="metadata">
+                            <source src="{{ url_for('serve_video', video_id=video.id) }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <div class="btn-group w-100" role="group">
+                        <a href="{{ url_for('serve_video', video_id=video.id) }}" class="btn btn-primary btn-sm" target="_blank">
+                            ▶️ Watch
+                        </a>
+                        <a href="{{ url_for('download_video', video_id=video.id) }}" class="btn btn-success btn-sm" download>
+                            ⬇️ Download
+                        </a>
+                        {% if not video.facebook_video_id %}
+                        <a href="{{ url_for('post_video_now', video_id=video.id) }}" class="btn btn-outline-primary btn-sm"
+                           onclick="return confirm('Post this video to Facebook?')">
+                            📤 Post
+                        </a>
+                        {% endif %}
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteVideo({{ video.id }}, '{{ video.topic }}')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4>No videos yet</h4>
+        <p>Generate your first video from the <a href="/dashboard">Dashboard</a>!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteVideo(videoId, videoTopic) {
+    if (!confirm(`Are you sure you want to delete "${videoTopic}"?\n\nThis will permanently remove the video file and database entry.`)) {
+        return;
+    }
+
+    fetch(`/videos/${videoId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Refresh the page to show updated list
+            window.location.reload();
+        } else {
+            alert('Failed to delete video: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting video');
+    });
+}
+</script>
+{% endblock %}

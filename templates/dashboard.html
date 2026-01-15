@@ -78,48 +78,56 @@
 
     {% if videos %}
     <div class="card">
-        <div class="card-header">
-            <h4>Recent Videos</h4>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Recent Videos</h4>
+            <a href="/videos" class="btn btn-outline-primary btn-sm">View All Videos →</a>
         </div>
         <div class="card-body">
-            {% for video in videos %}
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">{{ video.topic }}</h5>
-                    <p class="card-text">
-                        <small class="text-muted">
-                            Created: {{ video.created_at }} |
-                            Status: <span class="badge bg-success">{{ video.status }}</span> |
-                            {% if video.facebook_video_id %}
-                            Posted to Facebook: ✓
-                            {% else %}
-                            Not posted to Facebook
-                            {% endif %}
-                        </small>
-                    </p>
-                    <div class="ratio ratio-9x16 mb-3" style="max-width: 360px;">
-                        <video controls preload="metadata">
-                            <source src="{{ url_for('serve_video', video_id=video.id) }}" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                    </div>
-                    <div class="btn-group" role="group">
-                        <a href="{{ url_for('serve_video', video_id=video.id) }}" class="btn btn-primary btn-sm" target="_blank">
-                            ▶️ Watch Fullscreen
-                        </a>
-                        <a href="{{ url_for('download_video', video_id=video.id) }}" class="btn btn-success btn-sm" download>
-                            ⬇️ Download Video
-                        </a>
-                        {% if not video.facebook_video_id %}
-                        <a href="{{ url_for('post_video_now', video_id=video.id) }}" class="btn btn-outline-primary btn-sm"
-                           onclick="return confirm('Post this video to Facebook?')">
-                            📤 Post to Facebook
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Topic</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Posted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for video in videos %}
+                        <tr>
+                            <td><strong>{{ video.topic }}</strong></td>
+                            <td><small>{{ video.created_at[:10] }}</small></td>
+                            <td><span class="badge bg-success">{{ video.status }}</span></td>
+                            <td>
+                                {% if video.facebook_video_id %}
+                                <span class="badge bg-primary">✓ Yes</span>
+                                {% else %}
+                                <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('serve_video', video_id=video.id) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                        ▶️
+                                    </a>
+                                    <a href="{{ url_for('download_video', video_id=video.id) }}" class="btn btn-sm btn-outline-success" download>
+                                        ⬇️
+                                    </a>
+                                    {% if not video.facebook_video_id %}
+                                    <a href="{{ url_for('post_video_now', video_id=video.id) }}" class="btn btn-sm btn-outline-primary"
+                                       onclick="return confirm('Post this video to Facebook?')">
+                                        📤
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            {% endfor %}
         </div>
     </div>
     {% endif %}

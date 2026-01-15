@@ -765,12 +765,25 @@ def process_video_generation_job(job_id):
         job = conn.execute('''
             SELECT j.*, s.topic, s.hook, s.fact1, s.fact2, s.fact3, s.fact4, s.payoff,
                    ak.elevenlabs_api_key, ak.facebook_page_token, ak.facebook_page_id,
-                   ak.auto_share_to_story, ak.facebook_token_expires
+                   ak.auto_share_to_story
             FROM video_generation_jobs j
             JOIN scripts s ON j.script_id = s.id
             JOIN api_keys ak ON j.user_id = ak.user_id
             WHERE j.id = ?
         ''', (job_id,)).fetchone()
+
+        # Try to get token expiry if column exists
+        try:
+            token_expiry = conn.execute('''
+                SELECT facebook_token_expires FROM api_keys WHERE user_id = ?
+            ''', (job['user_id'],)).fetchone()
+            if token_expiry:
+                job = dict(job)
+                job['facebook_token_expires'] = token_expiry['facebook_token_expires']
+        except:
+            # Column doesn't exist, skip it
+            job = dict(job)
+            job['facebook_token_expires'] = None
 
         if not job:
             print(f"[VIDEO_JOB] Job #{job_id} not found")
@@ -884,7 +897,7 @@ def process_video_generation_job(job_id):
                                     share_reel_to_story(facebook_video_id, api_keys)
                                     print(f"[VIDEO_JOB] Shared to Facebook Story")
                     else:
-                        # No expiry info - try posting anyway
+                        # No expiry info - try posting anyway (might work with new token)
                         print(f"[VIDEO_JOB] Posting to Facebook...")
                         facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
 
@@ -1648,6 +1661,58 @@ def dashboard():
                           videos=videos,
                           scripts=scripts,
                           active_video_jobs=active_video_jobs)
+
+@app.route('/videos')
+@login_required
+def videos_list():
+    """Show all videos for the current user"""
+    conn = get_db()
+
+    # Get ALL videos (not just recent)
+    videos = conn.execute('''
+        SELECT v.*, s.topic, s.hook, s.payoff
+        FROM videos v
+        JOIN scripts s ON v.script_id = s.id
+        WHERE v.user_id = ?
+        ORDER BY v.created_at DESC
+    ''', (session['user_id'],)).fetchall()
+
+    conn.close()
+
+    return render_template('videos.html', videos=videos)
+
+@app.route('/videos/<int:video_id>/delete', methods=['POST'])
+@login_required
+def delete_video(video_id):
+    """Delete a video and its file"""
+    conn = get_db()
+
+    # Get video info
+    video = conn.execute('''
+        SELECT v.*, s.topic
+        FROM videos v
+        JOIN scripts s ON v.script_id = s.id
+        WHERE v.id = ? AND v.user_id = ?
+    ''', (video_id, session['user_id'])).fetchone()
+
+    if not video:
+        conn.close()
+        return jsonify({'success': False, 'error': 'Video not found'}), 404
+
+    # Delete video file from disk
+    if video['file_path'] and os.path.exists(video['file_path']):
+        try:
+            os.remove(video['file_path'])
+            print(f"[DELETE] Removed video file: {video['file_path']}")
+        except Exception as e:
+            print(f"[DELETE] Error removing file: {e}")
+
+    # Delete from database
+    conn.execute('DELETE FROM videos WHERE id = ?', (video_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({'success': True, 'message': 'Video deleted successfully'})
 
 @app.route('/video/<int:video_id>')
 @login_required
