@@ -1284,7 +1284,7 @@ def settings():
         fb_token = request.form.get('facebook_page_token', '').strip()
         fb_page_id = request.form.get('facebook_page_id', '').strip()
         elevenlabs_key = request.form.get('elevenlabs_api_key', '').strip()
-        auto_share = 1 if request.form.get('auto_share_to_story') == 'on' else 0
+        auto_share = True if request.form.get('auto_share_to_story') == 'on' else False
 
         conn.execute('''
             UPDATE api_keys
