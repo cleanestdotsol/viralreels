@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Create Videos</h2>
+    <p class="text-muted">Generating videos for {{ scripts|length }} selected scripts</p>
+
+    <div class="row">
+        {% for script in scripts %}
+        <div class="col-md-6 mb-4">
+            <div class="card" id="card_{{ script.id }}">
+                <div class="card-body">
+                    <h5>{{ script.topic }}</h5>
+                    <p class="hook-text">🎣 {{ script.hook }}</p>
+                    <p class="payoff-text">💥 {{ script.payoff }}</p>
+                    
+                    <div id="status_{{ script.id }}" class="mt-3">
+                        <button class="btn btn-primary" onclick="generateVideo({{ script.id }})">
+                            Generate Video
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function generateVideo(scriptId) {
+    const statusDiv = document.getElementById('status_' + scriptId);
+    statusDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Generating video...';
+    
+    try {
+        const response = await fetch('/generate-video/' + scriptId, {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            statusDiv.innerHTML = '<div class="alert alert-success">✓ Video created successfully!</div>';
+        } else {
+            statusDiv.innerHTML = '<div class="alert alert-danger">✗ ' + data.error + '</div>';
+        }
+    } catch (error) {
+        statusDiv.innerHTML = '<div class="alert alert-danger">✗ Error: ' + error + '</div>';
+    }
+}
+
+// Auto-generate all videos on page load
+window.onload = function() {
+    const scriptIds = {{ scripts|map(attribute='id')|list|tojson }};
+    scriptIds.forEach((id, index) => {
+        setTimeout(() => generateVideo(id), index * 2000); // 2 second delay between each
+    });
+};
+</script>
+{% endblock %}

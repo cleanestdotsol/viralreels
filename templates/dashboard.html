@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Welcome, {{ session.email }}!</h2>
+            {% if user.is_admin %}
+            <span class="badge bg-success">ADMIN - Unlimited Access</span>
+            {% else %}
+            <p class="text-muted">Videos used: {{ user.videos_generated }} / {{ user.videos_limit }}</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end">
+            <form method="POST" action="/generate-scripts" class="d-inline">
+                <button type="submit" class="btn btn-primary">Generate New Scripts</button>
+            </form>
+            <form method="POST" action="/clear-scripts" class="d-inline ms-2" onsubmit="return confirm('Are you sure you want to clear all scripts?');">
+                <button type="submit" class="btn btn-outline-danger">🗑️ Clear Scripts</button>
+            </form>
+            <a href="/queue" class="btn btn-outline-success ms-2">📬 Queue</a>
+            <a href="/schedule" class="btn btn-outline-primary ms-2">⏰ Schedule</a>
+        </div>
+    </div>
+
+    {% if scripts %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Today's Generated Scripts</h4>
+            <p class="mb-0 text-muted">Select scripts to create videos</p>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="/select-scripts" id="selectForm">
+                <div class="row">
+                    {% for script in scripts %}
+                    <div class="col-md-6 mb-3">
+                        <div class="script-card card p-3" onclick="toggleScript({{ script.id }})">
+                            <input type="checkbox" name="script_ids" value="{{ script.id }}" class="form-check-input d-none" id="script_{{ script.id }}">
+                            <h5>{{ script.topic }}</h5>
+                            <p class="hook-text">🎣 {{ script.hook }}</p>
+                            <p class="small text-muted">
+                                📊 {{ script.fact1 }}<br>
+                                📊 {{ script.fact2 }}<br>
+                                📊 {{ script.fact3 }}<br>
+                                📊 {{ script.fact4 }}
+                            </p>
+                            <p class="payoff-text">💥 {{ script.payoff }}</p>
+                            <small class="text-muted">Viral Score: {{ "%.0f"|format(script.viral_score * 100) }}%</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-success btn-lg w-100">Create Videos from Selected Scripts</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if videos %}
+    <div class="card">
+        <div class="card-header">
+            <h4>Recent Videos</h4>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Views</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for video in videos %}
+                    <tr>
+                        <td>{{ video.topic }}</td>
+                        <td>{{ video.created_at }}</td>
+                        <td><span class="badge bg-success">{{ video.status }}</span></td>
+                        <td>{{ video.views }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleScript(id) {
+    const card = event.currentTarget;
+    const checkbox = document.getElementById('script_' + id);
+    checkbox.checked = !checkbox.checked;
+    card.classList.toggle('selected');
+}
+</script>
+{% endblock %}

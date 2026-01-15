@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Create New Prompt</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="name" class="form-label">
+                        <strong>Prompt Name</strong> <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="name" name="name" 
+                           placeholder="e.g., Space Facts, Psychology Tips, Ocean Life" required>
+                    <small class="form-text text-muted">
+                        Give this prompt a memorable name (for your reference)
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">
+                        <strong>Description</strong> (Optional)
+                    </label>
+                    <input type="text" class="form-control" id="description" name="description" 
+                           placeholder="e.g., Generates mind-blowing space and astronomy facts">
+                    <small class="form-text text-muted">
+                        What's this prompt for? Which page/niche?
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="topics" class="form-label">
+                        <strong>Topics</strong>
+                    </label>
+                    <input type="text" class="form-control" id="topics" name="topics" 
+                           value="animals, space, ocean, psychology, human body, food science, nature">
+                    <small class="form-text text-muted">
+                        Comma-separated list. Use <code>{topics}</code> in your prompt below.
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="num_scripts" class="form-label">
+                        <strong>Number of Scripts</strong>
+                    </label>
+                    <input type="number" class="form-control" id="num_scripts" name="num_scripts" 
+                           value="10" min="1" max="20">
+                    <small class="form-text text-muted">
+                        How many scripts to generate each time (1-20)
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="system_prompt" class="form-label">
+                        <strong>Prompt Text</strong> <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control font-monospace" id="system_prompt" name="system_prompt" 
+                              rows="20" required>{{ default_prompt }}</textarea>
+                    <small class="form-text text-muted">
+                        <strong>Placeholders:</strong> <code>{num_scripts}</code>, <code>{topics}</code><br>
+                        <strong>Important:</strong> Must return valid JSON array. Test with your AI provider first!
+                    </small>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="is_default" name="is_default">
+                    <label class="form-check-label" for="is_default">
+                        <strong>Set as default prompt</strong>
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        This prompt will be used automatically when generating scripts
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg">Create Prompt</button>
+                <a href="/prompts" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header bg-warning text-dark">
+            <h5>⚠️ Important Notes</h5>
+        </div>
+        <div class="card-body">
+            <ul>
+                <li><strong>Test your prompt first:</strong> Try it with Grok/Claude manually before saving</li>
+                <li><strong>JSON format is critical:</strong> The AI must return a valid JSON array</li>
+                <li><strong>Be specific:</strong> Clear instructions = better scripts</li>
+                <li><strong>Include constraints:</strong> Max word counts, no politics, etc.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

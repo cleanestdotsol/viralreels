@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>⏰ Schedule Posts</h2>
+            <p class="text-muted">Select videos to post automatically at specific times</p>
+        </div>
+    </div>
+
+    <!-- Schedule Settings -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Schedule Settings</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="start-time" class="form-label">Start Time</label>
+                    <input type="datetime-local" class="form-control" id="start-time" required>
+                    <small class="text-muted">When to post the first video</small>
+                </div>
+                <div class="col-md-4">
+                    <label for="interval" class="form-label">Interval (hours)</label>
+                    <input type="number" class="form-control" id="interval" value="2" min="1" max="24">
+                    <small class="text-muted">Time between posts</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Selected</label>
+                    <p class="form-control-plaintext">
+                        <strong id="selected-count">0</strong> / 6 videos
+                    </p>
+                </div>
+            </div>
+            <button id="schedule-btn" class="btn btn-success btn-lg w-100 mt-3" onclick="schedulePosts()" disabled>
+                📅 Schedule All Posts
+            </button>
+        </div>
+    </div>
+
+    <!-- Available Videos -->
+    {% if videos %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>📹 Available Videos ({{ videos|length }})</h5>
+            <p class="mb-0 text-muted">Select up to 6 videos to schedule</p>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for video in videos %}
+                <div class="col-md-6 mb-3">
+                    <div class="video-card card p-3" onclick="toggleVideo({{ video.id }}, this)">
+                        <input type="checkbox" class="video-checkbox d-none" value="{{ video.id }}" id="video_{{ video.id }}">
+                        <h6>{{ video.topic }}</h6>
+                        <p class="hook-text mb-1">🎣 {{ video.hook }}</p>
+                        <small class="text-muted">Viral Score: {{ "%.0f"|format(video.viral_score * 100) }}%</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card mb-4">
+        <div class="card-body text-center">
+            <h5>No videos available</h5>
+            <p class="text-muted">Generate some videos first, then come back to schedule them!</p>
+            <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Scheduled Posts -->
+    {% if scheduled %}
+    <div class="card">
+        <div class="card-header">
+            <h5>📅 Scheduled Posts ({{ scheduled|length }})</h5>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Scheduled Time</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in scheduled %}
+                    <tr>
+                        <td>{{ post.topic }}</td>
+                        <td>{{ post.scheduled_time }}</td>
+                        <td>
+                            {% if post.status == 'pending' %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% elif post.status == 'posted' %}
+                            <span class="badge bg-success">Posted</span>
+                            {% else %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if post.status == 'pending' %}
+                            <form method="POST" action="/scheduled-posts/{{ post.id }}/cancel" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.video-card {
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.video-card.selected {
+    border-color: #0d6efd;
+    background-color: #f8f9fa;
+}
+
+.video-card:hover {
+    border-color: #0d6efd;
+}
+
+.hook-text {
+    font-weight: 500;
+}
+</style>
+
+<script>
+let selectedVideos = new Set();
+const MAX_VIDEOS = 6;
+
+function toggleVideo(videoId, element) {
+    const checkbox = document.getElementById(`video_${videoId}`);
+
+    if (selectedVideos.has(videoId)) {
+        // Deselect
+        selectedVideos.delete(videoId);
+        checkbox.checked = false;
+        element.classList.remove('selected');
+    } else {
+        // Select
+        if (selectedVideos.size >= MAX_VIDEOS) {
+            alert(`You can only schedule up to ${MAX_VIDEOS} videos at a time`);
+            return;
+        }
+        selectedVideos.add(videoId);
+        checkbox.checked = true;
+        element.classList.add('selected');
+    }
+
+    updateSelectedCount();
+    updateScheduleButton();
+}
+
+function updateSelectedCount() {
+    document.getElementById('selected-count').textContent = selectedVideos.size;
+}
+
+function updateScheduleButton() {
+    const btn = document.getElementById('schedule-btn');
+    const startTime = document.getElementById('start-time').value;
+
+    btn.disabled = selectedVideos.size === 0 || !startTime;
+}
+
+document.getElementById('start-time').addEventListener('change', updateScheduleButton);
+
+async function schedulePosts() {
+    const startTime = document.getElementById('start-time').value;
+    const interval = parseInt(document.getElementById('interval').value);
+
+    if (!startTime) {
+        alert('Please select a start time');
+        return;
+    }
+
+    if (selectedVideos.size === 0) {
+        alert('Please select at least one video');
+        return;
+    }
+
+    // Calculate preview
+    const startDate = new Date(startTime);
+    let preview = `Are you sure you want to schedule ${selectedVideos.size} videos?\n\n`;
+    const videoIds = Array.from(selectedVideos);
+
+    for (let i = 0; i < videoIds.length; i++) {
+        const postTime = new Date(startDate.getTime() + i * interval * 60 * 60 * 1000);
+        preview += `Video ${i + 1}: ${postTime.toLocaleString()}\n`;
+    }
+
+    if (!confirm(preview)) {
+        return;
+    }
+
+    // Send request
+    try {
+        const response = await fetch('/schedule-posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                video_ids: videoIds,
+                start_time: startTime,
+                interval_hours: interval
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        alert('Error scheduling posts: ' + error);
+    }
+}
+</script>
+{% endblock %}

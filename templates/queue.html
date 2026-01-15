@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>📬 Video Queue (3-Hour Posting)</h2>
+            <p class="text-muted">Videos in the queue will be posted automatically every 3 hours, 24/7</p>
+        </div>
+    </div>
+
+    <!-- Queue Status -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">📊 Queue Status</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <h3>{{ queued_items|length }}</h3>
+                    <p class="text-muted mb-0">Videos in Queue</p>
+                </div>
+                <div class="col-md-4">
+                    <h3>3 Hours</h3>
+                    <p class="text-muted mb-0">Posting Interval</p>
+                </div>
+                <div class="col-md-4">
+                    <h3>{{ queued_items|length * 3 }} Hours</h3>
+                    <p class="text-muted mb-0">Time to Empty Queue</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Videos to Add -->
+    {% if available_videos %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>📹 Available Videos ({{ available_videos|length }})</h5>
+            <p class="mb-0 text-muted">Select videos to add to the queue</p>
+        </div>
+        <div class="card-body p-0">
+            <form method="POST" action="/add-to-queue" id="addQueueForm">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;"><input type="checkbox" id="select-all" onclick="toggleAll()"></th>
+                                <th>Topic</th>
+                                <th>Hook</th>
+                                <th>Created</th>
+                                <th>Viral Score</th>
+                                <th style="width: 120px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for video in available_videos %}
+                            <tr style="cursor: pointer;" onclick="toggleVideo({{ video.id }}, this)">
+                                <td>
+                                    <input type="checkbox" name="video_ids" value="{{ video.id }}" class="video-checkbox" id="video_{{ video.id }}">
+                                </td>
+                                <td><strong>{{ video.topic }}</strong></td>
+                                <td class="hook-text">{{ video.hook }}</td>
+                                <td>
+                                    <small class="text-muted">{{ video.created_at }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if video.viral_score >= 0.9 else 'warning' if video.viral_score >= 0.8 else 'secondary' }}">
+                                        {{ "%.0f"|format(video.viral_score * 100) }}%
+                                    </span>
+                                </td>
+                                <td onclick="event.stopPropagation()">
+                                    <button class="btn btn-sm btn-primary btn-post-now" data-video-id="{{ video.id }}">
+                                        📤 Post Now
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                    <p class="mb-0"><strong id="selected-count">0</strong> video(s) selected</p>
+                    <button type="submit" class="btn btn-success" id="add-btn" disabled>Add to Queue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Queued Videos -->
+    {% if queued_items %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>📬 Queued Videos ({{ queued_items|length }})</h5>
+            <p class="mb-0 text-muted">Will be posted in order, one every 3 hours</p>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Topic</th>
+                        <th>Hook</th>
+                        <th>Added</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in queued_items %}
+                    <tr>
+                        <td><strong>{{ loop.index }}</strong></td>
+                        <td>{{ item.topic }}</td>
+                        <td>{{ item.hook }}</td>
+                        <td>{{ item.queued_at }}</td>
+                        <td><span class="badge bg-primary">Queued</span></td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-primary btn-post-now-queued" data-video-id="{{ item.video_id }}">
+                                    📤 Post Now
+                                </button>
+                                <form method="POST" action="/queue/{{ item.id }}/remove" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card mb-4">
+        <div class="card-body text-center">
+            <h5>📭 Queue is Empty</h5>
+            <p class="text-muted">Add videos from above to start 24/7 automated posting!</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Clear Queue Button -->
+    {% if queued_items %}
+    <div class="text-center mb-4">
+        <form method="POST" action="/clear-queue" onsubmit="return confirm('Are you sure you want to clear the entire queue?');" style="display: inline;">
+            <button type="submit" class="btn btn-outline-danger">🗑️ Clear All Queue</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- How It Works -->
+    <div class="card">
+        <div class="card-header">
+            <h5>ℹ️ How the Queue Works</h5>
+        </div>
+        <div class="card-body">
+            <ul>
+                <li><strong>Posts every 3 hours</strong> - The scheduler posts one video from the queue every 3 hours</li>
+                <li><strong>Runs 24/7</strong> - As long as the server is running, videos post automatically day and night</li>
+                <li><strong>First in, first out</strong> - Videos are posted in the order they were added</li>
+                <li><strong>Auto-shares to Story</strong> - If enabled in Settings, posts automatically share to your Story</li>
+                <li><strong>Server must stay running</strong> - Deploy to cloud (Railway, Render, etc.) for 24/7 operation</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.hook-text {
+    font-weight: 500;
+}
+
+tr.selected {
+    background-color: #e7f1ff;
+}
+
+.btn-post-now {
+    white-space: nowrap;
+}
+
+.btn-post-now:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+</style>
+
+<script>
+let selectedVideos = new Set();
+
+function toggleVideo(videoId, element) {
+    const checkbox = document.getElementById(`video_${videoId}`);
+
+    if (selectedVideos.has(videoId)) {
+        selectedVideos.delete(videoId);
+        checkbox.checked = false;
+        element.classList.remove('selected');
+    } else {
+        selectedVideos.add(videoId);
+        checkbox.checked = true;
+        element.classList.add('selected');
+    }
+
+    updateSelectedCount();
+    updateAddButton();
+}
+
+function toggleAll() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.video-checkbox');
+    const rows = document.querySelectorAll('tbody tr');
+
+    if (selectAllCheckbox.checked) {
+        checkboxes.forEach((checkbox, index) => {
+            const videoId = parseInt(checkbox.value);
+            selectedVideos.add(videoId);
+            checkbox.checked = true;
+            rows[index].classList.add('selected');
+        });
+    } else {
+        checkboxes.forEach((checkbox, index) => {
+            const videoId = parseInt(checkbox.value);
+            selectedVideos.delete(videoId);
+            checkbox.checked = false;
+            rows[index].classList.remove('selected');
+        });
+    }
+
+    updateSelectedCount();
+    updateAddButton();
+}
+
+function updateSelectedCount() {
+    document.getElementById('selected-count').textContent = selectedVideos.size;
+}
+
+function updateAddButton() {
+    const btn = document.getElementById('add-btn');
+    btn.disabled = selectedVideos.size === 0;
+}
+
+// Add event listeners when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Attach click handlers to all Post Now buttons (both available and queued)
+    const postNowButtons = document.querySelectorAll('.btn-post-now, .btn-post-now-queued');
+    postNowButtons.forEach(button => {
+        button.addEventListener('click', async function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const videoId = parseInt(this.getAttribute('data-video-id'));
+
+            // Disable ALL Post Now buttons to prevent double-posting
+            postNowButtons.forEach(btn => {
+                btn.disabled = true;
+            });
+
+            const originalText = this.innerHTML;
+            this.innerHTML = '⏳ Posting...';
+
+            try {
+                const response = await fetch(`/post-now/${videoId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Success - show success message
+                    this.innerHTML = '✅ Posted!';
+                    this.classList.remove('btn-primary');
+                    this.classList.add('btn-success');
+
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                        <strong>Success!</strong> ${data.message}
+                        ${data.story_id ? '<br><small>Also shared to Story!</small>' : ''}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.querySelector('.container').prepend(alertDiv);
+
+                    // Refresh page after 1.5 seconds
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    // Error - show error message
+                    this.innerHTML = '❌ Failed';
+                    this.classList.remove('btn-primary');
+                    this.classList.add('btn-danger');
+
+                    // Show error alert
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                        <strong>Error:</strong> ${data.error}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.querySelector('.container').prepend(alertDiv);
+
+                    // Re-enable buttons after 3 seconds
+                    setTimeout(() => {
+                        postNowButtons.forEach(btn => {
+                            btn.disabled = false;
+                            if (btn === this) {
+                                btn.innerHTML = originalText;
+                                btn.classList.remove('btn-danger');
+                                btn.classList.add('btn-primary');
+                            }
+                        });
+                    }, 3000);
+                }
+            } catch (error) {
+                // Network error
+                this.innerHTML = '❌ Error';
+                this.classList.remove('btn-primary');
+                this.classList.add('btn-danger');
+
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    <strong>Error:</strong> Failed to communicate with server
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container').prepend(alertDiv);
+
+                setTimeout(() => {
+                    postNowButtons.forEach(btn => {
+                        btn.disabled = false;
+                        if (btn === this) {
+                            btn.innerHTML = originalText;
+                            btn.classList.remove('btn-danger');
+                            btn.classList.add('btn-primary');
+                        }
+                    });
+                }, 3000);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

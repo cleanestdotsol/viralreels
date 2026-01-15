@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h1>Terms of Service</h1>
+        </div>
+        <div class="card-body">
+            <h5>Last Updated: January 14, 2026</h5>
+
+            <h4 class="mt-4">1. Acceptance of Terms</h4>
+            <p>By accessing and using <strong>Viral Reels Generator</strong>, you accept and agree to be bound by these Terms of Service.</p>
+
+            <h4 class="mt-4">2. Description of Service</h4>
+            <p><strong>Viral Reels Generator</strong> is a video generation and social media management tool that allows you to:</p>
+            <ul>
+                <li>Generate video scripts using AI or manual input</li>
+                <li>Create videos from those scripts</li>
+                <li>Automatically post videos to your Facebook Page</li>
+                <li>Manage posting schedules and queues</li>
+            </ul>
+
+            <h4 class="mt-4">3. User Responsibilities</h4>
+            <p>As a user, you agree to:</p>
+            <ul>
+                <li>Provide accurate and complete information</li>
+                <li>Maintain the security of your password</li>
+                <li>Not share your account with others</li>
+                <li>Comply with all applicable laws and regulations</li>
+                <li>Not use the service for spam or abusive content</li>
+            </ul>
+
+            <h4 class="mt-4">4. Content & Posting</h4>
+            <p><strong>You are solely responsible for:</strong></p>
+            <ul>
+                <li>All content you create (scripts, videos, captions)</li>
+                <li>Ensuring your content complies with Facebook's Community Standards</li>
+                <li>Obtaining necessary rights for any media used in your videos</li>
+                <li>Consequences of violating Facebook's terms or intellectual property laws</li>
+            </ul>
+            <p><strong>We are not liable for:</strong></p>
+            <ul>
+                <li>Facebook removing or restricting your content</li>
+                <li>Copyright infringement claims against your content</li>
+                <li>Account suspensions or bans by Facebook</li>
+            </ul>
+
+            <h4 class="mt-4">5. Facebook Usage</h4>
+            <p><strong>You agree to:</strong></p>
+            <ul>
+                <li>Only post content that complies with Facebook's policies</li>
+                <li>Not use automated posting to spam or harass others</li>
+                <li>Respect Facebook's rate limits and community standards</li>
+                <li>Accept that Facebook may change their API at any time</li>
+            </ul>
+            <p><strong>We are not affiliated with or endorsed by Facebook.</strong></p>
+
+            <h4 class="mt-4">6. AI Provider Usage</h4>
+            <p><strong>If you use AI providers (Claude, OpenRouter, GLM, etc.):</strong></p>
+            <ul>
+                <li>You are responsible for obtaining your own API keys</li>
+                <li>You agree to the AI provider's terms of service</li>
+                <li>You are responsible for all charges incurred from your usage</li>
+                <li>We are not liable for AI-generated content quality or accuracy</li>
+            </ul>
+
+            <h4 class="mt-4">7. Account Limits</h4>
+            <p><strong>Free accounts:</strong> Limited to {{ VIDEOS_LIMIT_FREE or '10' }} videos per month</p>
+            <p><strong>Premium accounts:</strong> Unlimited video generation</p>
+            <p>We reserve the right to modify these limits at any time.</p>
+
+            <h4 class="mt-4">8. Service Availability</h4>
+            <p><strong>We strive for 100% uptime but do not guarantee:</strong></p>
+            <ul>
+                <li>Uninterrupted service (scheduled maintenance may occur)</li>
+                <li>Videos will post at exact scheduled times</li>
+                <li>Facebook API will always be available</li>
+                <li>AI providers will always be operational</li>
+            </ul>
+            <p><strong>We are not liable for:</strong></p>
+            <ul>
+                <li>Failed video posts due to Facebook outages</li>
+                <li>Delays caused by third-party services</li>
+                <li>Data loss from hardware failures</li>
+            </ul>
+
+            <h4 class="mt-4">9. Termination</h4>
+            <p><strong>We reserve the right to:</strong></p>
+            <ul>
+                <li>Suspend or terminate accounts that violate these terms</li>
+                <li>Disable accounts that abuse the service</li>
+                <li>Delete accounts that remain inactive for >12 months</li>
+            </ul>
+            <p><strong>You may terminate your account at any time</strong> by contacting us or using the account deletion feature.</p>
+
+            <h4 class="mt-4">10. Disclaimers</h4>
+            <p><strong>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND.</strong></p>
+            <p>We do not guarantee:
+            <ul>
+                <li>Videos will go viral or achieve specific results</li>
+                <li>The service will meet your specific requirements</li>
+                <li>The service will be error-free or uninterrupted</li>
+            </ul>
+
+            <h4 class="mt-4">11. Limitation of Liability</h4>
+            <p><strong>To the fullest extent permitted by law:</strong></p>
+            <ul>
+                <li>We are not liable for indirect, incidental, or consequential damages</li>
+                <li>Our total liability is limited to the amount you paid (if any)</li>
+                <li>We are not liable for lost profits, data, or business opportunities</li>
+            </ul>
+
+            <h4 class="mt-4">12. Intellectual Property</h4>
+            <p><strong>You retain ownership of:</strong></p>
+            <ul>
+                <li>All content you create (scripts, videos)</li>
+            </ul>
+            <p><strong>We retain ownership of:</strong></p>
+            <ul>
+                <li>The Viral Reels Generator software and design</li>
+                <li>Our brand, logos, and trademarks</li>
+            </ul>
+            <p><strong>You grant us license to:</strong></p>
+            <ul>
+                <li>Store and process your content to provide the service</li>
+                <li>Display content on your Facebook Page at your direction</li>
+            </ul>
+
+            <h4 class="mt-4">13. Modifications to Terms</h4>
+            <p>We may modify these terms at any time. Continued use of the service constitutes acceptance of changes.</p>
+
+            <h4 class="mt-4">14. Governing Law</h4>
+            <p>These terms are governed by the laws of the jurisdiction in which you reside.</p>
+
+            <h4 class="mt-4">15. Contact Information</h4>
+            <p>For questions about these Terms, contact:</p>
+            <p><strong>Email:</strong> {{ ADMIN_EMAIL or 'support@viralreels.com' }}</p>
+
+            <hr class="my-4">
+            <p class="text-muted"><small>By using <strong>Viral Reels Generator</strong>, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.</small></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

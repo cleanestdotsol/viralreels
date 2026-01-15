@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>📅 Scheduled Posts</h2>
+            <a href="/schedule" class="btn btn-primary">Schedule New Posts</a>
+        </div>
+    </div>
+
+    {% if posts %}
+    <div class="card">
+        <div class="card-header">
+            <h5>All Scheduled Posts ({{ posts|length }})</h5>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Topic</th>
+                        <th>Hook</th>
+                        <th>Scheduled Time</th>
+                        <th>Status</th>
+                        <th>Posted At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for post in posts %}
+                    <tr>
+                        <td>{{ post.topic }}</td>
+                        <td>{{ post.hook }}</td>
+                        <td>
+                            <strong>{{ post.scheduled_time }}</strong>
+                            {% if post.status == 'pending' %}
+                            {% set time_diff = post.scheduled_time|countdown %}
+                            {% if time_diff %}
+                            <br><small class="text-muted">{{ time_diff }}</small>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if post.status == 'pending' %}
+                            <span class="badge bg-warning">⏳ Pending</span>
+                            {% elif post.status == 'posted' %}
+                            <span class="badge bg-success">✅ Posted</span>
+                            {% elif post.status == 'failed' %}
+                            <span class="badge bg-danger">❌ Failed</span>
+                            {% if post.error_message %}
+                            <br><small class="text-muted">{{ post.error_message }}</small>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ post.posted_at or '-' }}
+                            {% if post.facebook_video_id %}
+                            <br><small class="text-muted">FB ID: {{ post.facebook_video_id[:15] }}...</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if post.status == 'pending' %}
+                            <form method="POST" action="/scheduled-posts/{{ post.id }}/cancel" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                            </form>
+                            {% elif post.status == 'posted' and post.story_id %}
+                            <span class="badge bg-info">📖 Story Shared</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center">
+            <h5>No scheduled posts</h5>
+            <p class="text-muted">You haven't scheduled any posts yet.</p>
+            <a href="/schedule" class="btn btn-primary">Schedule Posts Now</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <h5>ℹ️ How Scheduling Works</h5>
+        <ul>
+            <li><strong>Scheduler runs every 60 seconds</strong> to check for due posts</li>
+            <li><strong>Videos post automatically</strong> at their scheduled time</li>
+            <li><strong>Story sharing</strong> happens automatically if enabled in Settings</li>
+            <li><strong>Server must stay running</strong> - deploy to cloud for 24/7 operation</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

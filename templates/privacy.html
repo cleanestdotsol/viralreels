@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h1>Privacy Policy</h1>
+        </div>
+        <div class="card-body">
+            <h5>Last Updated: January 14, 2026</h5>
+
+            <h4 class="mt-4">1. Information We Collect</h4>
+            <p><strong>Viral Reels Generator</strong> collects the following information:</p>
+            <ul>
+                <li><strong>Account Information:</strong> Email address and password (encrypted)</li>
+                <li><strong>API Keys:</strong> Facebook Page Access Tokens, AI provider API keys (stored securely)</li>
+                <li><strong>Content:</strong> Scripts you create, videos you generate</li>
+                <li><strong>Usage Data:</strong> Video generation history, posting schedules</li>
+            </ul>
+
+            <h4 class="mt-4">2. How We Use Your Information</h4>
+            <p>We use your information to:</p>
+            <ul>
+                <li>Generate and post videos to your Facebook Page</li>
+                <li>Manage your account and provide customer support</li>
+                <li>Improve our services and develop new features</li>
+                <li>Communicate with you about updates and security</li>
+            </ul>
+
+            <h4 class="mt-4">3. Data Storage & Security</h4>
+            <p><strong>Storage:</strong> All data is stored locally on your server in encrypted SQLite databases.</p>
+            <p><strong>Security:</strong> We implement industry-standard security measures including:</p>
+            <ul>
+                <li>Password encryption using bcrypt</li>
+                <li>Secure session management</li>
+                <li>Protected API key storage</li>
+                <li>HTTPS encryption (when deployed)</li>
+            </ul>
+
+            <h4 class="mt-4">4. Facebook Integration</h4>
+            <p>When you connect your Facebook Page:</p>
+            <ul>
+                <li>We use Facebook OAuth 2.0 for secure authentication</li>
+                <li>We request permissions to post videos to your Page</li>
+                <li>We store your Page Access Token securely</li>
+                <li>We never post to your personal profile, only your Page</li>
+            </ul>
+            <p><strong>Important:</strong> We never sell your data to third parties. Your Facebook tokens are used solely to post videos to your own Page.</p>
+
+            <h4 class="mt-4">5. AI Provider Integrations</h4>
+            <p>If you connect AI providers (Claude, OpenRouter, GLM):</p>
+            <ul>
+                <li>Your API keys are stored securely in our database</li>
+                <li>We only use these keys to generate scripts as you request</li>
+                <li>We never share your API keys with third parties</li>
+                <li>You can revoke access at any time from your Settings page</li>
+            </ul>
+
+            <h4 class="mt-4">6. Data Retention</h4>
+            <ul>
+                <li><strong>Account Data:</strong> Retained until you delete your account</li>
+                <li><strong>Generated Content:</strong> Stored until you delete it</li>
+                <li><strong>API Keys:</strong> Stored until you remove them from Settings</li>
+                <li><strong>Logs:</strong> Automatically deleted after 30 days</li>
+            </ul>
+
+            <h4 class="mt-4">7. Your Rights</h4>
+            <p>You have the right to:</p>
+            <ul>
+                <li><strong>Access:</strong> View all your data in the Dashboard</li>
+                <li><strong>Delete:</strong> Remove videos, scripts, or your entire account</li>
+                <li><strong>Export:</strong> Download your data (contact us for assistance)</li>
+                <li><strong>Revoke:</strong> Disconnect Facebook or AI providers anytime</li>
+            </ul>
+
+            <h4 class="mt-4">8. Third-Party Services</h4>
+            <p>We use the following third-party services:</p>
+            <ul>
+                <li><strong>Facebook:</strong> For posting videos to your Page</li>
+                <li><strong>AI Providers:</strong> For script generation (optional)</li>
+                <li><strong>FFmpeg:</strong> For video processing (runs locally)</li>
+            </ul>
+            <p>Each service has its own privacy policy. We encourage you to review them.</p>
+
+            <h4 class="mt-4">9. Children's Privacy</h4>
+            <p><strong>Viral Reels Generator</strong> is not intended for children under 13. We do not knowingly collect information from children under 13.</p>
+
+            <h4 class="mt-4">10. Changes to This Policy</h4>
+            <p>We may update this Privacy Policy from time to time. We will notify you of any changes by:</p>
+            <ul>
+                <li>Posting the new policy on this page</li>
+                <li>Updating the "Last Updated" date</li>
+                <li>Sending you an email (for significant changes)</li>
+            </ul>
+
+            <h4 class="mt-4">11. Contact Us</h4>
+            <p>If you have questions about this Privacy Policy, please contact us at:</p>
+            <p><strong>Email:</strong> {{ ADMIN_EMAIL or 'support@viralreels.com' }}</p>
+
+            <hr class="my-4">
+            <p class="text-muted"><small>By using <strong>Viral Reels Generator</strong>, you agree to this Privacy Policy.</small></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

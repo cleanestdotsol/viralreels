@@ -1,0 +1,55 @@
+# Environment variables (CONTAINS SECRETS!)
+.env
+.env.production
+.env.local
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+viral_reels.db
+
+# Log files
+*.log
+debug.log
+video_generation.log
+error_log
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Flask session
+flask_session/
+
+# Temporary files
+temp_slides/
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Railway specific
+.railway/
+railway/
+
+# Deployment specific
+*.bak
+*.backup

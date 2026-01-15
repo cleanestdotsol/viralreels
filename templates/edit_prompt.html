@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Edit Prompt: {{ prompt.name }}</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="name" class="form-label">
+                        <strong>Prompt Name</strong> <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="name" name="name" 
+                           value="{{ prompt.name }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">
+                        <strong>Description</strong> (Optional)
+                    </label>
+                    <input type="text" class="form-control" id="description" name="description" 
+                           value="{{ prompt.description or '' }}">
+                </div>
+
+                <div class="mb-3">
+                    <label for="topics" class="form-label">
+                        <strong>Topics</strong>
+                    </label>
+                    <input type="text" class="form-control" id="topics" name="topics" 
+                           value="{{ prompt.topics or '' }}">
+                </div>
+
+                <div class="mb-3">
+                    <label for="num_scripts" class="form-label">
+                        <strong>Number of Scripts</strong>
+                    </label>
+                    <input type="number" class="form-control" id="num_scripts" name="num_scripts" 
+                           value="{{ prompt.num_scripts }}" min="1" max="20">
+                </div>
+
+                <div class="mb-3">
+                    <label for="system_prompt" class="form-label">
+                        <strong>Prompt Text</strong> <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control font-monospace" id="system_prompt" name="system_prompt" 
+                              rows="20" required>{{ prompt.system_prompt }}</textarea>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="is_default" name="is_default"
+                           {% if prompt.is_default %}checked{% endif %}>
+                    <label class="form-check-label" for="is_default">
+                        <strong>Set as default prompt</strong>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg">Save Changes</button>
+                <a href="/prompts" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

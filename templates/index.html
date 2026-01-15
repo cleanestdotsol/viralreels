@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="hero text-center">
+    <div class="container">
+        <h1 class="display-3 fw-bold mb-4">Automate Your Viral Reels</h1>
+        <p class="lead mb-5">Generate scripts, create videos, and post to Facebook automatically.</p>
+        <a href="/signup" class="btn btn-light btn-lg px-5 py-3">Get Started Free</a>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card text-center p-4">
+                <h3>📝 AI Script Generation</h3>
+                <p>Claude generates 10 viral scripts daily based on trending topics.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center p-4">
+                <h3>🎬 Automated Videos</h3>
+                <p>Videos created automatically with text-to-speech and animations.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center p-4">
+                <h3>📱 Auto-Posting</h3>
+                <p>Schedule and post videos to Facebook throughout the day.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleAPIFields() {
+    const provider = document.getElementById('ai_provider').value;
+
+    document.getElementById('claude_fields').style.display = (provider === 'claude') ? 'block' : 'none';
+    document.getElementById('openrouter_fields').style.display = (provider === 'openrouter') ? 'block' : 'none';
+    document.getElementById('glm_fields').style.display = (provider === 'glm') ? 'block' : 'none';
+    document.getElementById('manual_info').style.display = (provider === 'manual') ? 'block' : 'none';
+}
+
+// Initialize on page load
+toggleAPIFields();
+</script>
+{% endblock %}

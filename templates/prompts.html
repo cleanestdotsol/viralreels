@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Custom Prompts</h2>
+            <p class="text-muted">Create and manage prompts for different niches or Facebook pages</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="/prompts/create" class="btn btn-primary">+ Create New Prompt</a>
+        </div>
+    </div>
+
+    {% if prompts %}
+    <div class="row">
+        {% for prompt in prompts %}
+        <div class="col-md-6 mb-4">
+            <div class="card {% if prompt.is_active %}border-success{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">{{ prompt.name }}</h5>
+                        {% if prompt.is_default %}
+                        <span class="badge bg-primary">Default</span>
+                        {% endif %}
+                        {% if prompt.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            {% if not prompt.is_active %}
+                            <li>
+                                <form method="POST" action="/prompts/{{ prompt.id }}/activate" class="d-inline">
+                                    <button type="submit" class="dropdown-item">Set as Active</button>
+                                </form>
+                            </li>
+                            {% endif %}
+                            <li><a class="dropdown-item" href="/prompts/{{ prompt.id }}/edit">Edit</a></li>
+                            <li>
+                                <form method="POST" action="/prompts/{{ prompt.id }}/duplicate" class="d-inline">
+                                    <button type="submit" class="dropdown-item">Duplicate</button>
+                                </form>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/prompts/{{ prompt.id }}/delete" 
+                                      onsubmit="return confirm('Delete this prompt?')" class="d-inline">
+                                    <button type="submit" class="dropdown-item text-danger">Delete</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if prompt.description %}
+                    <p class="text-muted small">{{ prompt.description }}</p>
+                    {% endif %}
+                    
+                    <p class="mb-2"><strong>Topics:</strong> {{ prompt.topics or 'General' }}</p>
+                    <p class="mb-2"><strong>Scripts per run:</strong> {{ prompt.num_scripts }}</p>
+                    
+                    <hr>
+                    
+                    <div class="small">
+                        <strong>Preview:</strong>
+                        <pre class="bg-light p-2 mt-2" style="max-height: 150px; overflow-y: auto; font-size: 0.8em;">{{ prompt.system_prompt[:200] }}{% if prompt.system_prompt|length > 200 %}...{% endif %}</pre>
+                    </div>
+                    
+                    {% if prompt.times_used > 0 %}
+                    <div class="mt-2 text-muted small">
+                        Used {{ prompt.times_used }} times
+                        {% if prompt.last_used %}
+                        • Last used {{ prompt.last_used }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <h4 class="text-muted">No prompts yet</h4>
+            <p>Create your first custom prompt to start generating scripts tailored to your niche!</p>
+            <a href="/prompts/create" class="btn btn-primary">Create Your First Prompt</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card mt-4">
+        <div class="card-header bg-info text-white">
+            <h5>💡 Prompt Tips</h5>
+        </div>
+        <div class="card-body">
+            <h6>Use Cases:</h6>
+            <ul>
+                <li><strong>Multiple Facebook Pages:</strong> Create one prompt per page/niche (e.g., "Space Facts", "Psychology Tips", "Animal Videos")</li>
+                <li><strong>A/B Testing:</strong> Test different prompt styles to see which generates more viral hooks</li>
+                <li><strong>Seasonal Content:</strong> Create prompts for holidays, seasons, or trending events</li>
+                <li><strong>Client Projects:</strong> Save prompts for different clients when selling this as a service</li>
+            </ul>
+            
+            <h6 class="mt-3">Placeholders:</h6>
+            <ul>
+                <li><code>{num_scripts}</code> - Number of scripts to generate</li>
+                <li><code>{topics}</code> - Topics list from prompt settings</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
