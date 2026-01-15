@@ -41,6 +41,24 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(32)  # Random secret key for sessions
 app.config['DATABASE'] = 'viral_reels.db'
 app.config['UPLOAD_FOLDER'] = 'videos'
+
+# ============================================================================
+# INITIALIZATION FOR RAILWAY/PRODUCTION
+# ============================================================================
+# Create necessary directories (runs when app imports)
+directories = [
+    'videos',
+    os.path.join('videos', '1'),
+    'temp_slides',
+    'flask_session'
+]
+
+for directory in directories:
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except Exception as e:
+        print(f"[WARNING] Could not create directory {directory}: {e}")
+
 app.config['TEMPLATES_AUTO_RELOAD'] = True  # Disable template caching
 
 # File-based sessions that persist across app reloads
@@ -2716,6 +2734,18 @@ def escape_text(text):
 # ============================================================================
 
 if __name__ == '__main__':
+    # Create necessary directories for Railway deployment
+    directories = [
+        'videos',
+        os.path.join('videos', '1'),
+        'temp_slides',
+        'flask_session'
+    ]
+
+    for directory in directories:
+        os.makedirs(directory, exist_ok=True)
+        print(f"[OK] Created directory: {directory}")
+
     # Initialize database
     if not os.path.exists(app.config['DATABASE']):
         init_db()
