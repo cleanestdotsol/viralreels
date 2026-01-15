@@ -1360,7 +1360,7 @@ def generate_scripts():
     # Get active prompt or default
     active_prompt = conn.execute('''
         SELECT * FROM prompts
-        WHERE user_id = ? AND (is_active = 1 OR is_default = 1)
+        WHERE user_id = ? AND (is_active = True OR is_default = True)
         ORDER BY is_active DESC, is_default DESC
         LIMIT 1
     ''', (session['user_id'],)).fetchone()
@@ -1763,7 +1763,7 @@ def create_prompt():
         system_prompt = request.form.get('system_prompt', '').strip()
         topics = request.form.get('topics', '').strip()
         num_scripts = int(request.form.get('num_scripts', 10))
-        is_default = 1 if request.form.get('is_default') == 'on' else 0
+        is_default = True if request.form.get('is_default') == 'on' else False
         
         if not name or not system_prompt:
             flash('Name and prompt text are required.', 'danger')
@@ -1774,7 +1774,7 @@ def create_prompt():
         # If setting as default, unset other defaults
         if is_default:
             conn.execute('''
-                UPDATE prompts SET is_default = 0, is_active = 0
+                UPDATE prompts SET is_default = False, is_active = False
                 WHERE user_id = ?
             ''', (session['user_id'],))
         
@@ -1855,12 +1855,12 @@ def edit_prompt(prompt_id):
         system_prompt = request.form.get('system_prompt', '').strip()
         topics = request.form.get('topics', '').strip()
         num_scripts = int(request.form.get('num_scripts', 10))
-        is_default = 1 if request.form.get('is_default') == 'on' else 0
+        is_default = True if request.form.get('is_default') == 'on' else False
         
         # If setting as default, unset other defaults
         if is_default:
             conn.execute('''
-                UPDATE prompts SET is_default = 0, is_active = 0
+                UPDATE prompts SET is_default = False, is_active = False
                 WHERE user_id = ? AND id != ?
             ''', (session['user_id'], prompt_id))
         
@@ -1953,12 +1953,12 @@ def duplicate_prompt(prompt_id):
     # Create duplicate
     conn.execute('''
         INSERT INTO prompts (user_id, name, description, system_prompt, topics, num_scripts, is_active, is_default)
-        VALUES (?, ?, ?, ?, ?, ?, 0, 0)
-    ''', (session['user_id'], 
-          f"{prompt['name']} (Copy)", 
-          prompt['description'], 
-          prompt['system_prompt'], 
-          prompt['topics'], 
+        VALUES (?, ?, ?, ?, ?, ?, False, False)
+    ''', (session['user_id'],
+          f"{prompt['name']} (Copy)",
+          prompt['description'],
+          prompt['system_prompt'],
+          prompt['topics'],
           prompt['num_scripts']))
     
     conn.commit()
@@ -2020,7 +2020,7 @@ def create_videos():
     # Get selected scripts
     scripts = conn.execute('''
         SELECT * FROM scripts
-        WHERE user_id = ? AND selected = 1
+        WHERE user_id = ? AND selected = True
         ORDER BY viral_score DESC
     ''', (session['user_id'],)).fetchall()
     
