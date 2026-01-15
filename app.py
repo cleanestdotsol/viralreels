@@ -2834,14 +2834,30 @@ def generate_video(script_id):
         return jsonify({'error': 'Script not found'}), 404
 
     # Create video generation job
-    cursor = conn.execute('''
-        INSERT INTO video_generation_jobs (user_id, script_id, status)
-        VALUES (?, ?, 'pending')
-    ''', (session['user_id'], script_id))
+    if app.config['DATABASE_TYPE'] == 'postgresql':
+        # PostgreSQL - use RETURNING to get the inserted ID
+        cursor = conn.execute('''
+            INSERT INTO video_generation_jobs (user_id, script_id, status)
+            VALUES (%s, %s, 'pending')
+            RETURNING id
+        ''', (session['user_id'], script_id))
+        result = cursor.fetchone()
+        job_id = result['id'] if result else None
+    else:
+        # SQLite - use lastrowid
+        cursor = conn.execute('''
+            INSERT INTO video_generation_jobs (user_id, script_id, status)
+            VALUES (?, ?, 'pending')
+        ''', (session['user_id'], script_id))
+        job_id = cursor.lastrowid
 
-    job_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Verify job was created successfully
+    if not job_id:
+        print(f"[VIDEO_JOB ERROR] Failed to create job for script #{script_id}")
+        return jsonify({'error': 'Failed to create video generation job'}), 500
 
     print(f"[VIDEO_JOB] Created job #{job_id} for script #{script_id}")
 
