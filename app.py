@@ -593,13 +593,32 @@ def process_script_generation_job(job_id):
 
         # Save scripts to database
         if scripts:
-            for script in scripts:
-                conn.execute('''
-                    INSERT INTO scripts (user_id, topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (job['user_id'], script['topic'], script['hook'],
-                      script['fact1'], script['fact2'], script['fact3'],
-                      script['fact4'], script['payoff'], script.get('viral_score', 0.5)))
+            print(f"[INFO] Saving {len(scripts)} scripts to database...")
+            saved_count = 0
+            for i, script in enumerate(scripts):
+                try:
+                    # Validate before saving (defensive check)
+                    required = ['topic', 'hook', 'fact1', 'fact2', 'fact3', 'fact4', 'payoff']
+                    missing = [f for f in required if f not in script]
+
+                    if missing:
+                        print(f"[WARNING] Script {i+1} missing fields: {missing}. Skipping.")
+                        continue
+
+                    conn.execute('''
+                        INSERT INTO scripts (user_id, topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (job['user_id'], script['topic'], script['hook'],
+                          script['fact1'], script['fact2'], script['fact3'],
+                          script['fact4'], script['payoff'], script.get('viral_score', 0.5)))
+                    saved_count += 1
+                except Exception as e:
+                    print(f"[ERROR] Failed to save script {i+1}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+
+            print(f"[INFO] Successfully saved {saved_count}/{len(scripts)} scripts")
 
             # Update prompt usage stats
             if job['prompt_id']:
@@ -1844,17 +1863,43 @@ def generate_glm_token(api_key):
         print(f"[ERROR] Token generation failed: {e}")
         return None
 
+def validate_script_fields(script):
+    """
+    Validate that a script object has all required fields.
+    Returns the script with defaults for missing optional fields.
+    Returns None if required fields are missing.
+    """
+    required_fields = ['topic', 'hook', 'fact1', 'fact2', 'fact3', 'fact4', 'payoff']
+
+    # Check all required fields exist
+    for field in required_fields:
+        if field not in script:
+            print(f"[WARNING] Script missing required field: {field}")
+            return None
+
+    # Add default for viral_score if missing
+    if 'viral_score' not in script:
+        script['viral_score'] = 0.5
+
+    return script
+
 def extract_json_safely(response_text):
     """
     Extract JSON array from API response with multiple fallback strategies.
     Handles GLM API's malformed responses with unescaped quotes.
+    Validates all returned scripts have required fields.
     """
     import re
     import json
 
     # Strategy 1: Try direct JSON parse (clean response)
     try:
-        return json.loads(response_text)
+        scripts = json.loads(response_text)
+        if isinstance(scripts, list):
+            validated = [s for s in (validate_script_fields(s) for s in scripts) if s is not None]
+            if validated:
+                print(f"[INFO] Strategy 1 extracted {len(validated)} valid scripts")
+                return validated
     except json.JSONDecodeError:
         pass
 
@@ -1863,7 +1908,12 @@ def extract_json_safely(response_text):
     end = response_text.rfind(']') + 1
     if start != -1 and end > start:
         try:
-            return json.loads(response_text[start:end])
+            scripts = json.loads(response_text[start:end])
+            if isinstance(scripts, list):
+                validated = [s for s in (validate_script_fields(s) for s in scripts) if s is not None]
+                if validated:
+                    print(f"[INFO] Strategy 2 extracted {len(validated)} valid scripts")
+                    return validated
         except json.JSONDecodeError:
             pass
 
@@ -1871,7 +1921,12 @@ def extract_json_safely(response_text):
     json_match = re.search(r'\[\s*\{.*?\}\s*\]', response_text, re.DOTALL)
     if json_match:
         try:
-            return json.loads(json_match.group())
+            scripts = json.loads(json_match.group())
+            if isinstance(scripts, list):
+                validated = [s for s in (validate_script_fields(s) for s in scripts) if s is not None]
+                if validated:
+                    print(f"[INFO] Strategy 3 extracted {len(validated)} valid scripts")
+                    return validated
         except json.JSONDecodeError:
             pass
 
@@ -1893,7 +1948,12 @@ def extract_json_safely(response_text):
                 json_str
             )
 
-            return json.loads(fixed_json)
+            scripts = json.loads(fixed_json)
+            if isinstance(scripts, list):
+                validated = [s for s in (validate_script_fields(s) for s in scripts) if s is not None]
+                if validated:
+                    print(f"[INFO] Strategy 4 extracted {len(validated)} valid scripts")
+                    return validated
     except Exception:
         pass
 
@@ -1903,14 +1963,20 @@ def extract_json_safely(response_text):
         objects = re.findall(r'\{[^{}]*"topic"[^{}]*\}', response_text, re.DOTALL)
         if objects:
             scripts = []
+            required_fields = ['topic', 'hook', 'fact1', 'fact2', 'fact3', 'fact4', 'payoff']
             for obj_str in objects:
                 try:
                     obj = json.loads(obj_str)
-                    if 'topic' in obj and 'hook' in obj:
+                    # Validate ALL required fields exist
+                    if all(field in obj for field in required_fields):
+                        # Ensure viral_score has a default
+                        if 'viral_score' not in obj:
+                            obj['viral_score'] = 0.5
                         scripts.append(obj)
                 except json.JSONDecodeError:
                     continue
             if scripts:
+                print(f"[INFO] Strategy 5 extracted {len(scripts)} valid script objects")
                 return scripts
     except Exception:
         pass
