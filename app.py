@@ -855,83 +855,8 @@ def process_video_generation_job(job_id):
             # COMMIT IMMEDIATELY - video is now saved to database
             conn.commit()
             print(f"[VIDEO_JOB] Video saved to database (ID: {video_record_id})")
-
-            # Post to Facebook if credentials available (non-blocking)
-            facebook_video_id = None
-            if api_keys.get('facebook_page_token') and api_keys.get('facebook_page_id'):
-                try:
-                    # Check token expiry before attempting to post
-                    token_expires = job.get('facebook_token_expires')
-                    should_post = True
-                    post_message = ""
-
-                    if token_expires:
-                        import time
-                        seconds_left = token_expires - int(time.time())
-                        days_left = max(0, seconds_left // (24 * 60 * 60))
-
-                        if days_left == 0:
-                            # Token expired - skip posting
-                            print(f"[VIDEO_JOB] Facebook token expired - skipping post")
-                            print(f"[VIDEO_JOB] Please refresh your token in Settings → Connect Facebook Page")
-                            should_post = False
-                        elif days_left < 7:
-                            # Token expiring soon - post but warn
-                            post_message = f"Facebook token expires in {days_left} days - posting now"
-                        else:
-                            post_message = "Posting to Facebook..."
-                    else:
-                        post_message = "Posting to Facebook..."
-
-                    if should_post:
-                        print(f"[VIDEO_JOB] {post_message}")
-                        facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
-
-                        if facebook_video_id:
-                            print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
-
-                            # Update video record with Facebook video ID
-                            conn.execute('''
-                                UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
-                                WHERE id = ?
-                            ''', (facebook_video_id, video_record_id))
-
-                            # Auto-share to Story if enabled
-                            if api_keys.get('auto_share_to_story'):
-                                try:
-                                    share_reel_to_story(
-                                        facebook_video_id,
-                                        api_keys['facebook_page_token'],
-                                        api_keys['facebook_page_id']
-                                    )
-                                    print(f"[VIDEO_JOB] Shared to Facebook Story")
-                                except Exception as story_error:
-                                    print(f"[VIDEO_JOB] Story share failed (non-critical): {story_error}")
-
-                except Exception as e:
-                    print(f"[VIDEO_JOB] Facebook posting failed: {e}")
-                    import traceback
-                    traceback.print_exc()
-
-            # Update Facebook video ID if posting succeeded
-            if facebook_video_id:
-                try:
-                    conn.execute('''
-                        UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                    ''', (facebook_video_id, video_record_id))
-
-                    conn.execute('''
-                        UPDATE video_generation_jobs SET facebook_video_id = ?
-                        WHERE id = ?
-                    ''', (facebook_video_id, job_id))
-
-                    conn.commit()
-                    print(f"[VIDEO_JOB] Job #{job_id} completed with Facebook post")
-                except Exception as e:
-                    print(f"[VIDEO_JOB] Warning: Could not update Facebook ID: {e}")
-            else:
-                print(f"[VIDEO_JOB] Job #{job_id} completed successfully")
+            print(f"[VIDEO_JOB] Video generation complete. User can post manually from dashboard.")
+            print(f"[VIDEO_JOB] Job #{job_id} completed successfully")
 
         else:
             # Video generation failed
