@@ -1878,12 +1878,21 @@ def facebook_auth():
     """Start Facebook OAuth flow"""
     # Facebook App credentials - you need to create a Facebook app
     fb_app_id = os.environ.get('FACEBOOK_APP_ID', '2370511290077574')
+
+    # Generate redirect URI and ensure it uses HTTPS
     redirect_uri = url_for('facebook_callback', _external=True)
+    # Force HTTPS for Facebook security
+    if redirect_uri.startswith('http://'):
+        redirect_uri = redirect_uri.replace('http://', 'https://', 1)
 
     # Required permissions for posting to Facebook Pages
     scope = 'pages_show_list,pages_read_engagement,pages_manage_posts,pages_manage_engagement,pages_read_user_content'
 
     auth_url = f"https://www.facebook.com/v18.0/dialog/oauth?client_id={fb_app_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code"
+
+    # Debug: Print redirect URI for troubleshooting
+    print(f"[FACEBOOK OAUTH] Redirect URI: {redirect_uri}")
+    print(f"[FACEBOOK OAUTH] Auth URL: {auth_url}")
 
     return redirect(auth_url)
 
