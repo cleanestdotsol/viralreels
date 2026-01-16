@@ -815,6 +815,7 @@ def process_video_generation_job(job_id):
         # Build API keys dict
         api_keys = {
             'elevenlabs_api_key': job['elevenlabs_api_key'],
+            'elevenlabs_enabled': job.get('elevenlabs_enabled', True),
             'facebook_page_token': job['facebook_page_token'],
             'facebook_page_id': job['facebook_page_id'],
             'auto_share_to_story': job['auto_share_to_story']
@@ -3484,7 +3485,7 @@ def clear_queue():
     flash(f'Cleared {deleted_count} video(s) from queue.', 'success')
     return redirect(url_for('queue_view'))
 
-@app.route('/post-now/<int:video_id>', methods=['POST'])
+@app.route('/post-now/<int:video_id>', methods=['GET', 'POST'])
 @login_required
 def post_video_now(video_id):
     """Immediately post a video to Facebook (bypasses queue)"""
