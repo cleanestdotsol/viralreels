@@ -8,6 +8,7 @@
             <p class="text-muted">Manage your generated videos</p>
         </div>
         <div class="col-md-4 text-end">
+            <button class="btn btn-outline-warning me-2" onclick="cleanupMissingVideos()">🧹 Cleanup Missing</button>
             <a href="/dashboard" class="btn btn-outline-secondary">← Back to Dashboard</a>
         </div>
     </div>
@@ -16,7 +17,7 @@
     <div class="row">
         {% for video in videos %}
         <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100">
+            <div class="card h-100 {% if not video.file_exists %}border-danger{% endif %}">
                 <div class="card-body">
                     <h5 class="card-title">{{ video.topic }}</h5>
                     <p class="card-text">
@@ -27,20 +28,29 @@
                             {% else %}
                             <span class="badge bg-secondary">Not posted</span>
                             {% endif %}
+                            {% if not video.file_exists %}
+                            <br><span class="badge bg-danger">⚠️ File Missing</span>
+                            {% endif %}
                         </small>
                     </p>
                     <p class="card-text">
                         <small>🎣 {{ video.hook[:80] }}{% if video.hook|length > 80 %}...{% endif %}</small>
                     </p>
+                    {% if video.file_exists %}
                     <div class="ratio ratio-9x16 mb-3" style="max-width: 240px; margin: 0 auto;">
                         <video controls preload="metadata">
                             <source src="{{ url_for('serve_video', video_id=video.id) }}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
+                    {% else %}
+                    <div class="alert alert-warning mb-3">
+                        <small>⚠️ Video file missing (deleted from server)</small>
                     </div>
+                    {% endif %}
                 </div>
                 <div class="card-footer bg-white">
                     <div class="btn-group w-100" role="group">
+                        {% if video.file_exists %}
                         <a href="{{ url_for('serve_video', video_id=video.id) }}" class="btn btn-primary btn-sm" target="_blank">
                             ▶️ Watch
                         </a>
@@ -52,6 +62,13 @@
                            onclick="return confirm('Post this video to Facebook?')">
                             📤 Post
                         </a>
+                        {% endif %}
+                        {% else %}
+                        <button class="btn btn-primary btn-sm" disabled>▶️ Watch</button>
+                        <button class="btn btn-success btn-sm" disabled>⬇️ Download</button>
+                        {% if not video.facebook_video_id %}
+                        <button class="btn btn-outline-primary btn-sm" disabled>📤 Post</button>
+                        {% endif %}
                         {% endif %}
                         <button class="btn btn-outline-danger btn-sm" onclick="deleteVideo({{ video.id }}, '{{ video.topic }}')">
                             🗑️ Delete
@@ -96,6 +113,30 @@ function deleteVideo(videoId, videoTopic) {
     .catch(error => {
         console.error('Error:', error);
         alert('Error deleting video');
+    });
+}
+
+function cleanupMissingVideos() {
+    if (!confirm('Remove all videos with missing files?\n\nThis will delete database entries for videos that no longer exist on the server and refund your quota.')) {
+        return;
+    }
+
+    fetch('/videos/cleanup-missing', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message + `\n\nQuota refunded: ${data.quota_refunded}`);
+            location.reload();
+        } else {
+            alert('Failed to cleanup: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error cleaning up videos');
     });
 }
 </script>

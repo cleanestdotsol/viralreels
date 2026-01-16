@@ -1701,9 +1701,58 @@ def videos_list():
         ORDER BY v.created_at DESC
     ''', (session['user_id'],)).fetchall()
 
+    # Check which videos have missing files and add file_exists flag
+    videos_with_status = []
+    for video in videos:
+        video_dict = dict(video)
+        video_dict['file_exists'] = video['file_path'] and os.path.exists(video['file_path'])
+        videos_with_status.append(video_dict)
+
     conn.close()
 
-    return render_template('videos.html', videos=videos)
+    return render_template('videos.html', videos=videos_with_status)
+
+@app.route('/videos/cleanup-missing', methods=['POST'])
+@login_required
+def cleanup_missing_videos():
+    """Remove all video entries that have missing files"""
+    conn = get_db()
+
+    # Find all videos with missing files
+    all_videos = conn.execute('''
+        SELECT id, file_path, topic
+        FROM videos v
+        JOIN scripts s ON v.script_id = s.id
+        WHERE v.user_id = ?
+    ''', (session['user_id'],)).fetchall()
+
+    missing_count = 0
+    deleted_ids = []
+
+    for video in all_videos:
+        if not video['file_path'] or not os.path.exists(video['file_path']):
+            # Delete the database entry
+            conn.execute('DELETE FROM videos WHERE id = ?', (video['id'],))
+            deleted_ids.append(video['id'])
+            missing_count += 1
+            print(f"[CLEANUP] Removed missing video entry: {video['topic']} (ID: {video['id']})")
+
+    # Decrement user's video count for each missing video
+    if missing_count > 0:
+        conn.execute('''
+            UPDATE users SET videos_generated = videos_generated - ?
+            WHERE id = ? AND videos_generated >= ?
+        ''', (missing_count, session['user_id'], missing_count))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'message': f'Cleaned up {missing_count} missing video(s)',
+        'deleted_count': missing_count,
+        'quota_refunded': missing_count
+    })
 
 @app.route('/videos/<int:video_id>/delete', methods=['POST'])
 @login_required
