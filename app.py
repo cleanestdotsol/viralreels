@@ -3829,7 +3829,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                     video_filter = f"ass='{slide_ass_abs}',scale=720:1280"
                     if has_logo:
-                        video_filter += ",overlay=(W-w)/2:H-h-30"  # Bottom-center with 30px padding
+                        video_filter += ",overlay=(W-w)/2:30"  # Top-center with 30px padding
 
                     cmd.extend([
                         '-vf', video_filter,
@@ -3858,7 +3858,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                     video_filter = f"ass='{slide_ass_abs}',scale=720:1280"
                     if has_logo:
-                        video_filter += ",overlay=(W-w)/2:H-h-30"  # Bottom-center with 30px padding
+                        video_filter += ",overlay=(W-w)/2:30"  # Top-center with 30px padding
 
                     cmd.extend([
                         '-vf', video_filter,
