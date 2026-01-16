@@ -1944,6 +1944,9 @@ def facebook_callback():
         fb_app_id = os.environ.get('FACEBOOK_APP_ID', '2370511290077574')
         fb_app_secret = os.environ.get('FACEBOOK_APP_SECRET', '')
         redirect_uri = url_for('facebook_callback', _external=True)
+        # Force HTTPS for Facebook security (must match auth redirect URI)
+        if redirect_uri.startswith('http://'):
+            redirect_uri = redirect_uri.replace('http://', 'https://', 1)
 
         token_url = f"https://graph.facebook.com/v18.0/oauth/access_token"
         params = {
@@ -1953,11 +1956,19 @@ def facebook_callback():
             'code': code
         }
 
+        print(f"[FACEBOOK CALLBACK] Exchanging code for token")
+        print(f"[FACEBOOK CALLBACK] Redirect URI: {redirect_uri}")
+        print(f"[FACEBOOK CALLBACK] Token URL: {token_url}")
+
         response = requests.get(token_url, params=params, timeout=30)
         data = response.json()
 
+        print(f"[FACEBOOK CALLBACK] Response: {data}")
+
         if 'access_token' not in data:
-            flash('Failed to get access token from Facebook. Please try again.', 'danger')
+            error_msg = data.get('error', {}).get('message', 'Unknown error')
+            print(f"[FACEBOOK ERROR] Failed to get token: {error_msg}")
+            flash(f'Failed to get access token: {error_msg}', 'danger')
             return redirect(url_for('settings'))
 
         user_access_token = data['access_token']
