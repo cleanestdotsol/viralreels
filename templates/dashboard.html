@@ -98,8 +98,8 @@
                         {% for video in videos %}
                         <tr>
                             <td><strong>{{ video.topic }}</strong></td>
-                            <td><small>{{ video.created_at.split('.')[0] if video.created_at else 'N/A' }}</small></td>
-                            <td><span class="badge bg-success">{{ video.status }}</span></td>
+                            <td><small>{{ video.created_at or 'N/A' }}</small></td>
+                            <td><span class="badge bg-{{ 'success' if video.status == 'completed' else 'warning' }}">{{ video.status or 'Unknown' }}</span></td>
                             <td>
                                 {% if video.facebook_video_id %}
                                 <span class="badge bg-primary">✓ Yes</span>

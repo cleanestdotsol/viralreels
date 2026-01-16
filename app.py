@@ -1637,22 +1637,31 @@ def dashboard():
     ''', (session['user_id'],)).fetchall()
 
     # Get recent videos
-    videos = conn.execute('''
-        SELECT v.*, s.topic, s.hook
-        FROM videos v
-        JOIN scripts s ON v.script_id = s.id
-        WHERE v.user_id = ?
-        ORDER BY v.created_at DESC
-        LIMIT 10
-    ''', (session['user_id'],)).fetchall()
+    try:
+        videos = conn.execute('''
+            SELECT v.id, v.file_path, v.status, v.facebook_video_id, v.views, v.created_at,
+                   s.topic, s.hook
+            FROM videos v
+            JOIN scripts s ON v.script_id = s.id
+            WHERE v.user_id = ?
+            ORDER BY v.created_at DESC
+            LIMIT 10
+        ''', (session['user_id'],)).fetchall()
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch videos: {e}")
+        videos = []
 
     # Get recent scripts (last 100 to avoid timezone issues)
-    scripts = conn.execute('''
-        SELECT * FROM scripts
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT 100
-    ''', (session['user_id'],)).fetchall()
+    try:
+        scripts = conn.execute('''
+            SELECT * FROM scripts
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 100
+        ''', (session['user_id'],)).fetchall()
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch scripts: {e}")
+        scripts = []
 
     conn.close()
 
