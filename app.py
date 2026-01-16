@@ -1744,6 +1744,31 @@ def delete_video(video_id):
 
     return jsonify({'success': True, 'message': 'Video deleted successfully'})
 
+@app.route('/sync-quota', methods=['POST'])
+@login_required
+def sync_quota():
+    """Sync quota counter with actual video count in database"""
+    conn = get_db()
+
+    # Count actual videos in database for this user
+    actual_count = conn.execute('''
+        SELECT COUNT(*) FROM videos WHERE user_id = ?
+    ''', (session['user_id'],)).fetchone()[0]
+
+    # Update user's counter to match actual count
+    conn.execute('''
+        UPDATE users SET videos_generated = ? WHERE id = ?
+    ''', (actual_count, session['user_id']))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'message': f'Quota synced to {actual_count} videos',
+        'actual_count': actual_count
+    })
+
 @app.route('/video/<int:video_id>')
 @login_required
 def serve_video(video_id):

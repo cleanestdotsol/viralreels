@@ -20,6 +20,12 @@
                 {% endif %}
             </p>
             <p><strong>Videos Generated:</strong> {{ user.videos_generated }}</p>
+            <button class="btn btn-sm btn-outline-warning mt-2" onclick="syncQuota()">
+                🔄 Sync Quota to Actual Count
+            </button>
+            <small class="form-text text-muted d-block">
+                If you deleted videos but your quota wasn't refunded, click to sync your counter with actual video count.
+            </small>
         </div>
     </div>
 
@@ -384,6 +390,30 @@ function refreshFacebookToken() {
             btn.disabled = false;
         }, 2000);
         alert('Error refreshing token');
+    });
+}
+
+function syncQuota() {
+    if (!confirm('Sync your quota counter to match the actual number of videos in your account?\n\nThis will recount your videos and update your quota accordingly.')) {
+        return;
+    }
+
+    fetch('/sync-quota', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Failed to sync quota');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error syncing quota');
     });
 }
 
