@@ -1413,6 +1413,28 @@ def init_db():
         # Column might already exist or migration already ran
         print(f"[INFO] Migration check: {e}")
 
+    # Migration: Add facebook_page_name column if it doesn't exist
+    try:
+        if is_postgres:
+            cursor.execute('''
+                ALTER TABLE api_keys
+                ADD COLUMN IF NOT EXISTS facebook_page_name TEXT
+            ''')
+        else:
+            # SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we check PRAGMA
+            cursor.execute("PRAGMA table_info(api_keys)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'facebook_page_name' not in columns:
+                cursor.execute('''
+                    ALTER TABLE api_keys
+                    ADD COLUMN facebook_page_name TEXT
+                ''')
+                print("[MIGRATION] Added facebook_page_name column to api_keys table")
+        conn.commit()
+    except Exception as e:
+        # Column might already exist or migration already ran
+        print(f"[INFO] Migration check: {e}")
+
     conn.close()
     print("[OK] Database initialized")
 
