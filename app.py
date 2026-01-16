@@ -828,7 +828,7 @@ def process_video_generation_job(job_id):
         if success:
             print(f"[VIDEO_JOB] Video generated successfully: {video_path}")
 
-            # Save video record
+            # Save video record to database FIRST (before attempting Facebook)
             cursor = conn.execute('''
                 INSERT INTO videos (user_id, script_id, file_path, status)
                 VALUES (?, ?, ?, 'completed')
@@ -836,7 +836,27 @@ def process_video_generation_job(job_id):
 
             video_record_id = cursor.lastrowid
 
-            # Post to Facebook if credentials available
+            # Update user's video count
+            conn.execute('''
+                UPDATE users SET videos_generated = videos_generated + 1
+                WHERE id = ?
+            ''', (job['user_id'],))
+
+            # Unselect script
+            conn.execute('UPDATE scripts SET selected = FALSE WHERE id = ?', (job['script_id'],))
+
+            # Mark job complete (video exists, Facebook posting is optional)
+            conn.execute('''
+                UPDATE video_generation_jobs
+                SET status = 'completed', video_path = ?, completed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (video_path, job_id))
+
+            # COMMIT IMMEDIATELY - video is now saved to database
+            conn.commit()
+            print(f"[VIDEO_JOB] Video saved to database (ID: {video_record_id})")
+
+            # Post to Facebook if credentials available (non-blocking)
             facebook_video_id = None
             if api_keys.get('facebook_page_token') and api_keys.get('facebook_page_id'):
                 try:
@@ -912,24 +932,25 @@ def process_video_generation_job(job_id):
                     import traceback
                     traceback.print_exc()
 
-            # Update user's video count
-            conn.execute('''
-                UPDATE users SET videos_generated = videos_generated + 1
-                WHERE id = ?
-            ''', (job['user_id'],))
+            # Update Facebook video ID if posting succeeded
+            if facebook_video_id:
+                try:
+                    conn.execute('''
+                        UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (facebook_video_id, video_record_id))
 
-            # Unselect script
-            conn.execute('UPDATE scripts SET selected = FALSE WHERE id = ?', (job['script_id'],))
+                    conn.execute('''
+                        UPDATE video_generation_jobs SET facebook_video_id = ?
+                        WHERE id = ?
+                    ''', (facebook_video_id, job_id))
 
-            # Mark job complete
-            conn.execute('''
-                UPDATE video_generation_jobs
-                SET status = 'completed', video_path = ?, facebook_video_id = ?, completed_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (video_path, facebook_video_id, job_id))
-
-            conn.commit()
-            print(f"[VIDEO_JOB] Job #{job_id} completed successfully")
+                    conn.commit()
+                    print(f"[VIDEO_JOB] Job #{job_id} completed with Facebook post")
+                except Exception as e:
+                    print(f"[VIDEO_JOB] Warning: Could not update Facebook ID: {e}")
+            else:
+                print(f"[VIDEO_JOB] Job #{job_id} completed successfully")
 
         else:
             # Video generation failed
@@ -3152,7 +3173,7 @@ def post_to_facebook_with_keys(video_path, script, api_keys):
                 'description': caption
             }
             
-            response = requests.post(url, files=files, data=data)
+            response = requests.post(url, files=files, data=data, timeout=60)
             
             if response.status_code == 200:
                 video_id = response.json().get('id')
