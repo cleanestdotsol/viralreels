@@ -3810,6 +3810,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 log(f"    [DEBUG] Wrapped text: {wrapped_text}")
                 log(f"    [DEBUG] Text length: {len(wrapped_text)} chars")
 
+                # Build video filter - add logo overlay for payoff slide (last slide)
+                import os
+                logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'curiosityflash2.jpg')
+                has_logo = section == 'payoff' and os.path.exists(logo_path)
+
                 if section_audio and os.path.exists(section_audio):
                     # With audio - use audio duration + padding
                     # Memory-optimized settings for Railway container
@@ -3818,7 +3823,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         '-f', 'lavfi',
                         '-i', f'color=c=black:s=720x1280:d={slide_duration}:r=24',
                         '-i', section_audio,
-                        '-vf', f"ass='{slide_ass_abs}',scale=720:1280",
+                    ]
+                    if has_logo:
+                        cmd.extend(['-i', logo_path])
+
+                    video_filter = f"ass='{slide_ass_abs}',scale=720:1280"
+                    if has_logo:
+                        video_filter += ",overlay=(W-w)/2:H-h-30"  # Bottom-center with 30px padding
+
+                    cmd.extend([
+                        '-vf', video_filter,
                         '-c:v', 'libx264',
                         '-preset', 'ultrafast',
                         '-crf', '28',
@@ -3831,14 +3845,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         '-shortest',
                         '-y',
                         slide_video_path
-                    ]
+                    ])
                 else:
                     # Without audio - memory optimized
                     cmd = [
                         'ffmpeg',
                         '-f', 'lavfi',
                         '-i', f'color=c=black:s=720x1280:d={slide_duration}:r=24',
-                        '-vf', f"ass='{slide_ass_abs}',scale=720:1280",
+                    ]
+                    if has_logo:
+                        cmd.extend(['-i', logo_path])
+
+                    video_filter = f"ass='{slide_ass_abs}',scale=720:1280"
+                    if has_logo:
+                        video_filter += ",overlay=(W-w)/2:H-h-30"  # Bottom-center with 30px padding
+
+                    cmd.extend([
+                        '-vf', video_filter,
                         '-c:v', 'libx264',
                         '-preset', 'ultrafast',
                         '-crf', '28',
@@ -3848,7 +3871,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         '-pix_fmt', 'yuv420p',
                         '-y',
                         slide_video_path
-                    ]
+                    ])
 
                 # Log FFmpeg command for debugging
                 log(f"    [DEBUG] FFmpeg command: {' '.join(cmd)}")
