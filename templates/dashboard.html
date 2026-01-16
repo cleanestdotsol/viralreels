@@ -98,7 +98,7 @@
                         {% for video in videos %}
                         <tr>
                             <td><strong>{{ video.topic }}</strong></td>
-                            <td><small>{{ video.created_at[:10] }}</small></td>
+                            <td><small>{{ video.created_at.split('.')[0] if video.created_at else 'N/A' }}</small></td>
                             <td><span class="badge bg-success">{{ video.status }}</span></td>
                             <td>
                                 {% if video.facebook_video_id %}
