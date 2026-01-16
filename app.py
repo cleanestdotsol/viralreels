@@ -3629,13 +3629,19 @@ def post_video_now(video_id):
             except:
                 pass
 
-        # Log error but don't expose internal details (safe encoding)
-        try:
-            error_msg = str(e).encode('ascii', 'ignore').decode('ascii')
-            print(f"[ERROR] Post-now failed for video {video_id}: {error_msg}")
-        except:
-            print(f"[ERROR] Post-now failed for video {video_id}")
-        return jsonify({'success': False, 'error': 'An unexpected error occurred. Please try again.'}), 500
+        # Log full error details
+        import traceback
+        print(f"[ERROR] Post-now failed for video {video_id}: {str(e)}")
+        traceback.print_exc()
+
+        # Return user-friendly error message
+        error_type = type(e).__name__
+        if 'FileNotFoundError' in error_type or 'file' in str(e).lower():
+            return jsonify({'success': False, 'error': 'Video file not found on server'}), 400
+        elif 'facebook' in str(e).lower() or 'api' in str(e).lower():
+            return jsonify({'success': False, 'error': f'Facebook API error: {str(e)[:200]}'}), 500
+        else:
+            return jsonify({'success': False, 'error': f'Error: {str(e)[:200]}'}), 500
 
 
 # ============================================================================
