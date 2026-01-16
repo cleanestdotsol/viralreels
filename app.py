@@ -4,7 +4,7 @@ Viral Reels Generator - Full Application
 Flask web app with user accounts, API key management, and video automation
 """
 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from flask_session import Session
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
