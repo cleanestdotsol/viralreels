@@ -772,23 +772,16 @@ def process_video_generation_job(job_id):
             WHERE j.id = ?
         ''', (job_id,)).fetchone()
 
-        # Try to get token expiry if column exists
-        try:
-            token_expiry = conn.execute('''
-                SELECT facebook_token_expires FROM api_keys WHERE user_id = ?
-            ''', (job['user_id'],)).fetchone()
-            if token_expiry:
-                job = dict(job)
-                job['facebook_token_expires'] = token_expiry['facebook_token_expires']
-        except:
-            # Column doesn't exist, skip it
-            job = dict(job)
-            job['facebook_token_expires'] = None
-
         if not job:
             print(f"[VIDEO_JOB] Job #{job_id} not found")
             conn.close()
             return
+
+        # Convert to dict and add token expiry placeholder
+        # (column may not exist in older databases, handled as None)
+        job = dict(job)
+        if 'facebook_token_expires' not in job:
+            job['facebook_token_expires'] = None
 
         # Update status to processing
         conn.execute('''
