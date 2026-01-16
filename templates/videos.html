@@ -58,10 +58,9 @@
                             ⬇️ Download
                         </a>
                         {% if not video.facebook_video_id %}
-                        <a href="{{ url_for('post_video_now', video_id=video.id) }}" class="btn btn-outline-primary btn-sm"
-                           onclick="return confirm('Post this video to Facebook?')">
+                        <button class="btn btn-outline-primary btn-sm" id="post-btn-{{ video.id }}" onclick="postVideo({{ video.id }}, '{{ video.topic }}')">
                             📤 Post
-                        </a>
+                        </button>
                         {% endif %}
                         {% else %}
                         <button class="btn btn-primary btn-sm" disabled>▶️ Watch</button>
@@ -138,6 +137,41 @@ function cleanupMissingVideos() {
         console.error('Error:', error);
         alert('Error cleaning up videos');
     });
+}
+
+function postVideo(videoId, videoTopic) {
+    if (!confirm(`Post "${videoTopic}" to Facebook?`)) {
+        return;
+    }
+
+    const btn = document.getElementById(`post-btn-${videoId}`);
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Posting...';
+    btn.disabled = true;
+
+    fetch(`/post-now/${videoId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Posted to Facebook successfully!');
+                location.reload();
+            } else {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                if (data.error.includes('already being posted') || data.error.includes('already posted')) {
+                    alert(data.error);
+                    location.reload(); // Refresh to show updated state
+                } else {
+                    alert('Failed to post: ' + data.error);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            alert('Error posting to Facebook');
+        });
 }
 </script>
 {% endblock %}

@@ -359,65 +359,64 @@ def process_video_queue():
         traceback.print_exc()
 
 def generate_hashtags(topic, hook, payoff):
-    """Generate 5 relevant hashtags based on the content"""
-    # Combine all text for analysis
-    text = f"{topic} {hook} {payoff}".lower()
+    """Generate 5 relevant hashtags based on the topic"""
+    topic_lower = topic.lower()
 
-    # Common viral hashtags across categories
-    common_hashtags = [
-        '#fyp', '#foryou', '#viral', '#trending', '#explore',
-        '#didyouknow', '#facts', '#mindblown', '#interesting',
-        '#learnontiktok', '#educational', '#amazing', '#wow',
-        '#reels', '#fbreels', '#facebookreels'
-    ]
-
-    # Topic-based hashtag mappings
+    # Topic-based hashtag mappings (more comprehensive)
     topic_keywords = {
-        'science': ['#science', '#scientists', '#research', '#discovery', '#biology'],
-        'animal': ['#animals', '#wildlife', '#nature', '#animalfacts', '#pets'],
+        'science': ['#science', '#scientists', '#research', '#discovery', '#stem'],
+        'animal': ['#animals', '#wildlife', '#nature', '#animalfacts', '#naturelovers'],
         'space': ['#space', '#universe', '#astronomy', '#galaxy', '#nasa'],
-        'ocean': ['#ocean', '#marine', '#sealife', '#underwater', '#fish'],
+        'ocean': ['#ocean', '#marine', '#sealife', '#underwater', '#oceanlife'],
         'psychology': ['#psychology', '#mentalhealth', '#brain', '#mindset', '#therapy'],
         'food': ['#food', '#foodscience', '#cooking', '#chef', '#nutrition'],
         'nature': ['#nature', '#environment', '#earth', '#wild', '#outdoors'],
-        'history': ['#history', '#historical', '#past', '#civilization', '#ancient'],
+        'history': ['#history', '#historical', '#historyfacts', '#civilization', '#ancient'],
         'technology': ['#technology', '#tech', '#innovation', '#future', '#gadgets'],
-        'health': ['#health', '#wellness', '#fitness', '#medical', '#body'],
+        'health': ['#health', '#wellness', '#fitness', '#medical', '#healthylifestyle'],
         'human body': ['#humanbody', '#anatomy', '#health', '#biology', '#science'],
+        'mind': ['#mind', '#psychology', '#brain', '#mentalhealth', '#mindset'],
+        'ancient': ['#ancient', '#history', '#archaeology', '#historical', '#civilization'],
+        'world': ['#world', '#earth', '#geography', '#travel', '#facts'],
+        'money': ['#money', '#finance', '#business', '#economics', '#facts'],
+        'music': ['#music', '#musical', '#instruments', '#sound', '#arts'],
+        'sports': ['#sports', '#athletics', '#fitness', '#games', '#competition'],
     }
 
-    # Extract keywords from text
-    words = re.findall(r'\b[a-z]{4,}\b', text)
-    word_freq = {}
-    for word in words:
-        if word not in ['this', 'that', 'with', 'from', 'have', 'been', 'were', 'they']:
-            word_freq[word] = word_freq.get(word, 0) + 1
+    # Common viral hashtags (always include 2-3 of these)
+    common_hashtags = [
+        '#fyp', '#foryou', '#viral', '#trending',
+        '#didyouknow', '#facts', '#mindblown', '#interesting',
+        '#fbreels', '#facebookreels', '#reels'
+    ]
 
-    # Get top words from content
-    top_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:5]
-    content_hashtags = [f"#{word}" for word, _ in top_words]
-
-    # Find matching topic category
+    # Find matching topic category hashtags
     category_hashtags = []
     for category, tags in topic_keywords.items():
-        if category in text:
+        if category in topic_lower:
             category_hashtags = tags[:3]
             break
 
-    # Combine and select 5 hashtags
-    all_hashtags = content_hashtags + category_hashtags + common_hashtags[:3]
+    # If no category match, create hashtags from topic words
+    if not category_hashtags:
+        # Extract meaningful words from topic (4+ characters)
+        topic_words = re.findall(r'\b[a-z]{4,}\b', topic_lower)
+        # Filter out common words
+        topic_words = [w for w in topic_words if w not in ['mind', 'blowing', 'blown', 'crazy', 'insane', 'unbelievable']]
+        category_hashtags = [f"#{word}" for word in topic_words[:3]]
 
-    # Remove duplicates and return first 5
+    # Combine: category tags (3) + viral tags (2)
+    selected_hashtags = category_hashtags[:3] + common_hashtags[:2]
+
+    # Remove duplicates while preserving order
     seen = set()
     unique_hashtags = []
-    for tag in all_hashtags:
+    for tag in selected_hashtags:
         if tag not in seen:
             seen.add(tag)
             unique_hashtags.append(tag)
-            if len(unique_hashtags) >= 5:
-                break
 
-    return ' '.join(unique_hashtags)
+    return ' '.join(unique_hashtags[:5])
 
 def post_video_to_facebook(video_path, hook, payoff, page_token, page_id):
     """Post video to Facebook Page"""
@@ -3566,8 +3565,17 @@ def post_video_now(video_id):
         if video['facebook_video_id']:
             return jsonify({'success': False, 'error': 'Video already posted to Facebook'}), 400
 
+        # Check if currently being posted (prevent double-posting)
+        if video.get('status') == 'posting':
+            return jsonify({'success': False, 'error': 'Video is already being posted to Facebook'}), 409
+
         # Mark video as "posting" to prevent race conditions
-        conn.execute("UPDATE videos SET status = 'posting' WHERE id = ?", (video_id,))
+        # Use WHERE clause to ensure we only update if not already posting
+        cursor = conn.execute("UPDATE videos SET status = 'posting' WHERE id = ? AND status != 'posting'", (video_id,))
+        if cursor.rowcount == 0:
+            # Someone else already marked it as posting
+            conn.close()
+            return jsonify({'success': False, 'error': 'Video is already being posted'}), 409
         conn.commit()
 
         # Post video to Facebook
