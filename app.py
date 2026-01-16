@@ -3743,7 +3743,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Log FFmpeg command for debugging
                 log(f"    [DEBUG] FFmpeg command: {' '.join(cmd)}")
 
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
                 if result.returncode == 0:
                     log(f"    [OK] Slide created: {slide_video_path}")
@@ -3764,10 +3764,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         os.remove(slide_ass_path)
                     except:
                         pass
+            except subprocess.TimeoutExpired as e:
+                log(f"    [ERROR] TIMEOUT after 120s for slide {section}")
+                log(f"    [ERROR] This slide took too long to generate")
+                log(f"    [ERROR] Text: {text[:100]}...")
+                log(f"    [ERROR] Duration: {duration}s")
+                # Clean up and continue
+                try:
+                    os.remove(slide_ass_path)
+                    if os.path.exists(slide_video_path):
+                        os.remove(slide_video_path)
+                except:
+                    pass
+                continue
             except Exception as e:
                 log(f"    [ERROR] Exception processing slide {section}: {e}")
                 import traceback
                 log(traceback.format_exc())
+                # Clean up and continue
+                try:
+                    os.remove(slide_ass_path)
+                except:
+                    pass
                 continue
 
         if not slide_videos:
