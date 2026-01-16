@@ -1822,9 +1822,10 @@ def sync_quota():
     conn = get_db()
 
     # Count actual videos in database for this user
-    actual_count = conn.execute('''
-        SELECT COUNT(*) FROM videos WHERE user_id = ?
-    ''', (session['user_id'],)).fetchone()[0]
+    result = conn.execute('''
+        SELECT COUNT(*) as count FROM videos WHERE user_id = ?
+    ''', (session['user_id'],)).fetchone()
+    actual_count = result['count'] if result else 0
 
     # Update user's counter to match actual count
     conn.execute('''
