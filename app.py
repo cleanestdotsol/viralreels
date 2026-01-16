@@ -1732,6 +1732,13 @@ def delete_video(video_id):
 
     # Delete from database
     conn.execute('DELETE FROM videos WHERE id = ?', (video_id,))
+
+    # Decrement user's video count (refund quota)
+    conn.execute('''
+        UPDATE users SET videos_generated = videos_generated - 1
+        WHERE id = ? AND videos_generated > 0
+    ''', (session['user_id'],))
+
     conn.commit()
     conn.close()
 
