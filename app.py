@@ -862,6 +862,9 @@ def process_video_generation_job(job_id):
                 try:
                     # Check token expiry before attempting to post
                     token_expires = job.get('facebook_token_expires')
+                    should_post = True
+                    post_message = ""
+
                     if token_expires:
                         import time
                         seconds_left = token_expires - int(time.time())
@@ -871,47 +874,17 @@ def process_video_generation_job(job_id):
                             # Token expired - skip posting
                             print(f"[VIDEO_JOB] Facebook token expired - skipping post")
                             print(f"[VIDEO_JOB] Please refresh your token in Settings → Connect Facebook Page")
-                            facebook_video_id = None  # Explicitly set to None
+                            should_post = False
                         elif days_left < 7:
                             # Token expiring soon - post but warn
-                            print(f"[VIDEO_JOB] Facebook token expires in {days_left} days - posting now")
-                            print(f"[VIDEO_JOB] Please refresh your token soon in Settings")
-                            facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
-
-                            if facebook_video_id:
-                                print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
-
-                                # Update video record with Facebook video ID
-                                conn.execute('''
-                                    UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
-                                    WHERE id = ?
-                                ''', (facebook_video_id, video_record_id))
-
-                                # Auto-share to Story if enabled
-                                if api_keys.get('auto_share_to_story'):
-                                    share_reel_to_story(facebook_video_id, api_keys)
-                                    print(f"[VIDEO_JOB] Shared to Facebook Story")
+                            post_message = f"Facebook token expires in {days_left} days - posting now"
                         else:
-                            # Token valid - post normally
-                            print(f"[VIDEO_JOB] Posting to Facebook...")
-                            facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
-
-                            if facebook_video_id:
-                                print(f"[VIDEO_JOB] Posted to Facebook: {facebook_video_id}")
-
-                                # Update video record with Facebook video ID
-                                conn.execute('''
-                                    UPDATE videos SET facebook_video_id = ?, posted_at = CURRENT_TIMESTAMP
-                                    WHERE id = ?
-                                ''', (facebook_video_id, video_record_id))
-
-                                # Auto-share to Story if enabled
-                                if api_keys.get('auto_share_to_story'):
-                                    share_reel_to_story(facebook_video_id, api_keys)
-                                    print(f"[VIDEO_JOB] Shared to Facebook Story")
+                            post_message = "Posting to Facebook..."
                     else:
-                        # No expiry info - try posting anyway (might work with new token)
-                        print(f"[VIDEO_JOB] Posting to Facebook...")
+                        post_message = "Posting to Facebook..."
+
+                    if should_post:
+                        print(f"[VIDEO_JOB] {post_message}")
                         facebook_video_id = post_to_facebook_with_keys(video_path, script, api_keys)
 
                         if facebook_video_id:
@@ -925,8 +898,16 @@ def process_video_generation_job(job_id):
 
                             # Auto-share to Story if enabled
                             if api_keys.get('auto_share_to_story'):
-                                share_reel_to_story(facebook_video_id, api_keys)
-                                print(f"[VIDEO_JOB] Shared to Facebook Story")
+                                try:
+                                    share_reel_to_story(
+                                        facebook_video_id,
+                                        api_keys['facebook_page_token'],
+                                        api_keys['facebook_page_id']
+                                    )
+                                    print(f"[VIDEO_JOB] Shared to Facebook Story")
+                                except Exception as story_error:
+                                    print(f"[VIDEO_JOB] Story share failed (non-critical): {story_error}")
+
                 except Exception as e:
                     print(f"[VIDEO_JOB] Facebook posting failed: {e}")
                     import traceback
