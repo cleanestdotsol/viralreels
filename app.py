@@ -1420,6 +1420,13 @@ def init_db():
                 ALTER TABLE api_keys
                 ADD COLUMN IF NOT EXISTS facebook_page_name TEXT
             ''')
+            # Set default value for existing NULL entries
+            cursor.execute('''
+                UPDATE api_keys
+                SET facebook_page_name = 'Facebook Page'
+                WHERE facebook_page_name IS NULL
+                AND facebook_page_token IS NOT NULL
+            ''')
         else:
             # SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we check PRAGMA
             cursor.execute("PRAGMA table_info(api_keys)")
@@ -1430,7 +1437,15 @@ def init_db():
                     ADD COLUMN facebook_page_name TEXT
                 ''')
                 print("[MIGRATION] Added facebook_page_name column to api_keys table")
+            # Set default value for existing NULL entries
+            cursor.execute('''
+                UPDATE api_keys
+                SET facebook_page_name = 'Facebook Page'
+                WHERE facebook_page_name IS NULL
+                AND facebook_page_token IS NOT NULL
+            ''')
         conn.commit()
+        print("[MIGRATION] facebook_page_name column ready")
     except Exception as e:
         # Column might already exist or migration already ran
         print(f"[INFO] Migration check: {e}")
