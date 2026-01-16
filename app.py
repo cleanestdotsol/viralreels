@@ -3567,7 +3567,7 @@ def post_video_now(video_id):
             return jsonify({'success': False, 'error': 'Video already posted to Facebook'}), 400
 
         # Mark video as "posting" to prevent race conditions
-        conn.execute('UPDATE videos SET status = "posting" WHERE id = ?', (video_id,))
+        conn.execute("UPDATE videos SET status = 'posting' WHERE id = ?", (video_id,))
         conn.commit()
 
         # Post video to Facebook
@@ -3611,7 +3611,7 @@ def post_video_now(video_id):
             })
         else:
             # Posting failed - reset status
-            conn.execute('UPDATE videos SET status = "completed" WHERE id = ?', (video_id,))
+            conn.execute("UPDATE videos SET status = 'completed' WHERE id = ?", (video_id,))
             conn.commit()
             conn.close()
             return jsonify({'success': False, 'error': 'Facebook upload failed'}), 500
@@ -3619,7 +3619,7 @@ def post_video_now(video_id):
     except Exception as e:
         # Ensure connection is closed on error
         try:
-            conn.execute('UPDATE videos SET status = "completed" WHERE id = ?', (video_id,))
+            conn.execute("UPDATE videos SET status = 'completed' WHERE id = ?", (video_id,))
             conn.commit()
         except:
             pass
