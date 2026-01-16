@@ -2124,6 +2124,7 @@ def check_facebook_token():
 
         token = api_keys['facebook_page_token']
         page_id = api_keys['facebook_page_id']
+        page_name = api_keys.get('facebook_page_name', 'Facebook Page')  # Default if not set
 
         # Check token validity
         debug_url = "https://graph.facebook.com/v18.0/debug_token"
@@ -2132,8 +2133,11 @@ def check_facebook_token():
             'access_token': token
         }
 
+        print(f"[TOKEN CHECK] Checking token for page {page_id}")
         response = requests.get(debug_url, params=debug_params, timeout=30)
         debug_data = response.json()
+
+        print(f"[TOKEN CHECK] Response: {debug_data}")
 
         token_data = debug_data.get('data', {})
         is_valid = token_data.get('is_valid', False)
@@ -2148,7 +2152,7 @@ def check_facebook_token():
 
         return jsonify({
             'valid': is_valid,
-            'page_name': api_keys['facebook_page_name'],
+            'page_name': page_name,
             'page_id': page_id,
             'scopes': scopes,
             'expires_at': expires_at,
@@ -2157,6 +2161,9 @@ def check_facebook_token():
         })
 
     except Exception as e:
+        import traceback
+        print(f"[TOKEN CHECK ERROR] {str(e)}")
+        traceback.print_exc()
         conn.close()
         return jsonify({'valid': False, 'error': str(e)}), 500
 
