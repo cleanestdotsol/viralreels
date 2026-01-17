@@ -3078,17 +3078,27 @@ def clear_scripts():
 
     conn = get_db()
 
-    # Delete videos first (foreign key constraint to scripts)
+    # Delete scheduled posts first (foreign key constraint to videos)
     conn.execute('''
-        DELETE FROM videos
-        WHERE script_id IN (
-            SELECT id FROM scripts WHERE user_id = ?
+        DELETE FROM scheduled_posts
+        WHERE video_id IN (
+            SELECT id FROM videos WHERE script_id IN (
+                SELECT id FROM scripts WHERE user_id = ?
+            )
         )
     ''', (session['user_id'],))
 
     # Delete video generation jobs (foreign key constraint to scripts)
     conn.execute('''
         DELETE FROM video_generation_jobs
+        WHERE script_id IN (
+            SELECT id FROM scripts WHERE user_id = ?
+        )
+    ''', (session['user_id'],))
+
+    # Delete videos (foreign key constraint to scripts)
+    conn.execute('''
+        DELETE FROM videos
         WHERE script_id IN (
             SELECT id FROM scripts WHERE user_id = ?
         )
