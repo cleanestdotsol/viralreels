@@ -1356,6 +1356,41 @@ def init_db():
         # Column might already exist or migration already ran
         print(f"[INFO] Migration check: {e}")
 
+    # Migration: Add payoff column to scripts table if it doesn't exist (for older databases)
+    try:
+        if is_postgres:
+            cursor.execute('''
+                ALTER TABLE scripts
+                ADD COLUMN IF NOT EXISTS payoff TEXT
+            ''')
+        else:
+            # SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we check PRAGMA
+            cursor.execute("PRAGMA table_info(scripts)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'payoff' not in columns:
+                cursor.execute('''
+                    ALTER TABLE scripts
+                    ADD COLUMN payoff TEXT
+                ''')
+                print("[MIGRATION] Added payoff column to scripts table")
+
+        # Backfill NULL/empty payoff values with a default message
+        # For older scripts that don't have payoff, create one from hook + fact4
+        cursor.execute('''
+            UPDATE scripts
+            SET payoff = 'Mind-blowing conclusion: ' || SUBSTR(hook, 1, 50)
+            WHERE payoff IS NULL OR payoff = ''
+        ''')
+        affected = cursor.rowcount
+        if affected > 0:
+            print(f"[MIGRATION] Backfilled {affected} scripts with payoff values")
+
+        conn.commit()
+        print("[MIGRATION] Payoff column ready")
+    except Exception as e:
+        # Column might already exist or migration already ran
+        print(f"[INFO] Payoff migration check: {e}")
+
     conn.close()
     print("[OK] Database initialized")
 
