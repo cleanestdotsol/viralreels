@@ -1606,6 +1606,18 @@ def dashboard():
     # Get user info
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
 
+    # Auto-sync quota if counter is wrong (more than 1 difference)
+    actual_video_count = conn.execute('SELECT COUNT(*) as count FROM videos WHERE user_id = ?', (session['user_id'],)).fetchone()
+    actual_count = actual_video_count['count'] if actual_video_count else 0
+    reported_count = user['videos_generated'] if user else 0
+
+    if abs(reported_count - actual_count) > 1:
+        print(f"[DASHBOARD] Auto-syncing quota: reported={reported_count}, actual={actual_count}")
+        conn.execute('UPDATE users SET videos_generated = ? WHERE id = ?', (actual_count, session['user_id']))
+        conn.commit()
+        # Refresh user data after sync
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+
     # Get active video generation jobs
     active_video_jobs = conn.execute('''
         SELECT j.id, j.status, s.topic
