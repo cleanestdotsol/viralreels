@@ -3864,7 +3864,7 @@ def create_video_ffmpeg(script, output_path, api_keys):
 
         # Build ASS (Advanced SubStation Alpha) file template with proper styling
         # Multiple styles for different sections to maximize engagement
-        # Font sizes calibrated for 1080x1080 video with proper fit
+        # Font sizes calibrated for 800x800 text area within 720x1280 video
         ass_template = """[Script Info]
 ScriptType: v4.00+
 Collisions: Normal
@@ -3872,9 +3872,9 @@ PlayDepth: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hook,Arial,55,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
-Style: Fact,Arial,45,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
-Style: Payoff,Arial,50,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Hook,Arial,36,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Fact,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Payoff,Arial,33,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -3934,19 +3934,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                 # Select appropriate style based on section type for maximum engagement
                 if section == 'hook':
-                    style_name = 'Hook'  # RED with YELLOW outline, 55px
+                    style_name = 'Hook'  # RED with YELLOW outline, 36px
                 elif section == 'payoff':
-                    style_name = 'Payoff'  # YELLOW with BLACK outline, 50px
+                    style_name = 'Payoff'  # YELLOW with BLACK outline, 33px
                 else:
-                    style_name = 'Fact'  # WHITE with BLACK outline, 45px
+                    style_name = 'Fact'  # WHITE with BLACK outline, 30px
 
-                # For payoff slide, use higher top margin to avoid logo overlap
-                if section == 'payoff':
-                    # Modify template to add more top margin (200px instead of 60px)
-                    payoff_ass_template = ass_template.replace('MarginV,60,1', 'MarginV,200,1')
-                    slide_ass_content = payoff_ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},{style_name},,0,0,0,,{wrapped_text}\n"
-                else:
-                    slide_ass_content = ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},{style_name},,0,0,0,,{wrapped_text}\n"
+                # For payoff slide, use same margins as other slides (logo overlay disabled)
+                slide_ass_content = ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},{style_name},,0,0,0,,{wrapped_text}\n"
 
                 with open(slide_ass_path, 'w', encoding='utf-8') as f:
                     f.write(slide_ass_content)
@@ -3962,12 +3957,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 log(f"    [DEBUG] Wrapped text: {wrapped_text}")
                 log(f"    [DEBUG] Text length: {len(wrapped_text)} chars")
 
-                # Build video filter - add logo overlay for payoff slide (last slide)
+                # Build video filter - logo overlay disabled due to FFmpeg errors
                 import os
-                logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'curiosityflash2.jpg')
-                # Convert to forward slashes for FFmpeg compatibility
-                logo_path = logo_path.replace('\\', '/')
-                has_logo = section == 'payoff' and os.path.exists(logo_path)
+                has_logo = False  # Disabled - causing FFmpeg error 234 on payoff slides
 
                 if section_audio and os.path.exists(section_audio):
                     # With audio - use audio duration + padding
