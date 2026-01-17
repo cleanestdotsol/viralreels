@@ -1363,6 +1363,12 @@ def init_db():
                 ALTER TABLE scripts
                 ADD COLUMN IF NOT EXISTS payoff TEXT
             ''')
+            # Use SUBSTRING for PostgreSQL
+            cursor.execute('''
+                UPDATE scripts
+                SET payoff = 'Mind-blowing conclusion: ' || SUBSTRING(hook, 1, 50)
+                WHERE payoff IS NULL OR payoff = ''
+            ''')
         else:
             # SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we check PRAGMA
             cursor.execute("PRAGMA table_info(scripts)")
@@ -1373,14 +1379,13 @@ def init_db():
                     ADD COLUMN payoff TEXT
                 ''')
                 print("[MIGRATION] Added payoff column to scripts table")
+            # Use SUBSTR for SQLite
+            cursor.execute('''
+                UPDATE scripts
+                SET payoff = 'Mind-blowing conclusion: ' || SUBSTR(hook, 1, 50)
+                WHERE payoff IS NULL OR payoff = ''
+            ''')
 
-        # Backfill NULL/empty payoff values with a default message
-        # For older scripts that don't have payoff, create one from hook + fact4
-        cursor.execute('''
-            UPDATE scripts
-            SET payoff = 'Mind-blowing conclusion: ' || SUBSTR(hook, 1, 50)
-            WHERE payoff IS NULL OR payoff = ''
-        ''')
         affected = cursor.rowcount
         if affected > 0:
             print(f"[MIGRATION] Backfilled {affected} scripts with payoff values")
