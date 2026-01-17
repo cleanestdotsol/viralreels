@@ -3859,6 +3859,7 @@ def create_video_ffmpeg(script, output_path, api_keys):
 
         # Build ASS (Advanced SubStation Alpha) file template with proper styling
         # Multiple styles for different sections to maximize engagement
+        # Font sizes calibrated for 1080x1080 video with proper fit
         ass_template = """[Script Info]
 ScriptType: v4.00+
 Collisions: Normal
@@ -3866,9 +3867,9 @@ PlayDepth: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hook,Arial,110,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,4,2,5,50,50,60,1
-Style: Fact,Arial,80,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,4,2,5,50,50,60,1
-Style: Payoff,Arial,95,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,4,2,5,50,50,60,1
+Style: Hook,Arial,55,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Fact,Arial,45,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Payoff,Arial,50,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -3928,11 +3929,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                 # Select appropriate style based on section type for maximum engagement
                 if section == 'hook':
-                    style_name = 'Hook'  # RED with YELLOW outline, 110px
+                    style_name = 'Hook'  # RED with YELLOW outline, 55px
                 elif section == 'payoff':
-                    style_name = 'Payoff'  # YELLOW with BLACK outline, 95px
+                    style_name = 'Payoff'  # YELLOW with BLACK outline, 50px
                 else:
-                    style_name = 'Fact'  # WHITE with BLACK outline, 80px
+                    style_name = 'Fact'  # WHITE with BLACK outline, 45px
 
                 # For payoff slide, use higher top margin to avoid logo overlap
                 if section == 'payoff':
