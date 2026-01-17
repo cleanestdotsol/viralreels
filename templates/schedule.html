@@ -17,9 +17,9 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-4">
-                    <label for="start-time" class="form-label">Start Time (UTC)</label>
+                    <label for="start-time" class="form-label">Start Time</label>
                     <input type="datetime-local" class="form-control" id="start-time" required>
-                    <small class="text-warning">Times are in UTC timezone. Convert your local time to UTC.</small>
+                    <small class="text-muted">Your local time (auto-converted to UTC)</small>
                 </div>
                 <div class="col-md-4">
                     <label for="interval" class="form-label">Interval (hours)</label>
@@ -192,8 +192,11 @@ async function schedulePosts() {
         return;
     }
 
-    // Calculate preview
+    // Get timezone offset in minutes to convert local time to UTC
     const startDate = new Date(startTime);
+    const timezoneOffset = startDate.getTimezoneOffset(); // in minutes (positive for west of UTC)
+
+    // Calculate preview
     let preview = `Are you sure you want to schedule ${selectedVideos.size} videos?\n\n`;
     const videoIds = Array.from(selectedVideos);
 
@@ -206,7 +209,7 @@ async function schedulePosts() {
         return;
     }
 
-    // Send request
+    // Send request with timezone offset
     try {
         const response = await fetch('/schedule-posts', {
             method: 'POST',
@@ -216,7 +219,8 @@ async function schedulePosts() {
             body: JSON.stringify({
                 video_ids: videoIds,
                 start_time: startTime,
-                interval_hours: interval
+                interval_hours: interval,
+                timezone_offset: timezoneOffset  // Send timezone offset in minutes
             })
         });
 

@@ -3397,6 +3397,7 @@ def schedule_posts():
     video_ids = data.get('video_ids', [])
     start_time = data.get('start_time')  # Format: "2025-01-12T08:00"
     interval_hours = data.get('interval_hours', 2)
+    timezone_offset = data.get('timezone_offset', 0)  # Timezone offset in minutes from browser
 
     if not video_ids:
         return jsonify({'error': 'No videos selected'}), 400
@@ -3405,22 +3406,22 @@ def schedule_posts():
         return jsonify({'error': 'Start time required'}), 400
 
     try:
-        # Parse the start time (datetime-local input is in user's browser timezone)
-        # We need to handle this as UTC to avoid confusion - the simplest approach is to assume UTC
+        # Parse the start time (datetime-local sends no timezone, treat as local time)
         scheduled_time = datetime.fromisoformat(start_time)
 
-        # Store as-is and let database CURRENT_TIMESTAMP handle the comparison
-        # Note: Both times should be in UTC for consistent comparison
+        # Convert local time to UTC using the timezone offset from browser
+        # timezone_offset is in minutes (positive for west of UTC, e.g., EST = 300)
+        scheduled_time = scheduled_time + timedelta(minutes=timezone_offset)
 
         conn = get_db()
 
         # Schedule each video
         scheduled_count = 0
         for i, video_id in enumerate(video_ids):
-            # Calculate scheduled time for this video
+            # Calculate scheduled time for this video (already in UTC)
             video_time = scheduled_time + timedelta(hours=i * interval_hours)
 
-            # Create scheduled post (store timestamp - interpreted as UTC by database)
+            # Create scheduled post (store as UTC timestamp)
             conn.execute('''
                 INSERT INTO scheduled_posts (user_id, video_id, scheduled_time)
                 VALUES (?, ?, ?)
