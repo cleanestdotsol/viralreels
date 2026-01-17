@@ -3823,6 +3823,7 @@ def create_video_ffmpeg(script, output_path, api_keys):
             return '\\N'.join(lines)
 
         # Build ASS (Advanced SubStation Alpha) file template with proper styling
+        # Multiple styles for different sections to maximize engagement
         ass_template = """[Script Info]
 ScriptType: v4.00+
 Collisions: Normal
@@ -3830,7 +3831,9 @@ PlayDepth: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Noto Color Emoji,14,&H00FFFFFF,&H000000FF,&H00FFFF00,&H00FF00FF,0,0,0,0,100,100,0,0,1,3,1,5,100,100,420,1
+Style: Hook,Arial,110,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,4,2,5,50,50,60,1
+Style: Fact,Arial,80,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,4,2,5,50,50,60,1
+Style: Payoff,Arial,95,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,4,2,5,50,50,60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -3888,13 +3891,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Create ASS file for this slide
                 slide_ass_path = os.path.join(temp_dir, f'slide_{idx}_{section}.ass')
 
+                # Select appropriate style based on section type for maximum engagement
+                if section == 'hook':
+                    style_name = 'Hook'  # RED with YELLOW outline, 110px
+                elif section == 'payoff':
+                    style_name = 'Payoff'  # YELLOW with BLACK outline, 95px
+                else:
+                    style_name = 'Fact'  # WHITE with BLACK outline, 80px
+
                 # For payoff slide, use higher top margin to avoid logo overlap
                 if section == 'payoff':
-                    # Modify template to add more top margin (200px instead of 420px)
-                    payoff_ass_template = ass_template.replace('MarginV,420,1', 'MarginV,200,1')
-                    slide_ass_content = payoff_ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},Default,,0,0,0,,{wrapped_text}\n"
+                    # Modify template to add more top margin (200px instead of 60px)
+                    payoff_ass_template = ass_template.replace('MarginV,60,1', 'MarginV,200,1')
+                    slide_ass_content = payoff_ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},{style_name},,0,0,0,,{wrapped_text}\n"
                 else:
-                    slide_ass_content = ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},Default,,0,0,0,,{wrapped_text}\n"
+                    slide_ass_content = ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},{style_name},,0,0,0,,{wrapped_text}\n"
 
                 with open(slide_ass_path, 'w', encoding='utf-8') as f:
                     f.write(slide_ass_content)
