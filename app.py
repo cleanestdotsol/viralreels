@@ -2770,48 +2770,106 @@ def generate_scripts_glm(api_key, prompt_text):
 @app.route('/manual-scripts', methods=['GET', 'POST'])
 @login_required
 def manual_scripts():
-    """Manually paste scripts from Grok/Claude"""
-    
+    """Manually paste scripts from Grok/Claude (JSON mode)"""
+
     if request.method == 'POST':
-        scripts_text = request.form.get('scripts_json', '').strip()
-        
-        try:
-            # Try to parse JSON
-            scripts = json.loads(scripts_text)
-            
-            if not isinstance(scripts, list):
-                flash('Invalid format. Please paste a JSON array.', 'danger')
+        mode = request.form.get('mode', 'json')
+
+        if mode == 'form':
+            # Simple form mode
+            topic = request.form.get('topic', '').strip()
+            hook = request.form.get('hook', '').strip()
+            fact1 = request.form.get('fact1', '').strip()
+            fact2 = request.form.get('fact2', '').strip()
+            fact3 = request.form.get('fact3', '').strip()
+            fact4 = request.form.get('fact4', '').strip()
+            payoff = request.form.get('payoff', '').strip()
+
+            # Validation
+            if not all([topic, hook, fact1, fact2, fact3, fact4, payoff]):
+                flash('Please fill in all fields.', 'warning')
                 return redirect(url_for('manual_scripts'))
-            
-            # Save to database
-            conn = get_db()
-            for script in scripts:
+
+            try:
+                # Calculate viral score based on engagement factors
+                viral_score = 0.5  # Default
+                word_count = len(hook.split()) + len(fact1.split()) + len(fact2.split()) + len(fact3.split()) + len(fact4.split()) + len(payoff.split())
+
+                # Bonus for optimal length (not too short, not too long)
+                if 30 <= word_count <= 60:
+                    viral_score += 0.1
+                # Bonus for emotional words
+                emotional_words = ['insane', 'unbelievable', 'shocking', 'mind-blowing', 'incredible',
+                                 'terrifying', 'amazing', 'bizarre', 'impossible', 'crazy']
+                text_lower = (hook + ' ' + payoff).lower()
+                if any(word in text_lower for word in emotional_words):
+                    viral_score += 0.15
+                # Bonus for curiosity words
+                curiosity_words = ['secret', 'hidden', 'mystery', 'why', 'how', 'but wait',
+                                 'here\'s the thing', 'the truth', 'nobody knows']
+                if any(word in text_lower for word in curiosity_words):
+                    viral_score += 0.15
+
+                viral_score = min(viral_score, 0.99)  # Cap at 0.99
+
+                # Save to database
+                conn = get_db()
                 conn.execute('''
                     INSERT INTO scripts (user_id, topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (session['user_id'], 
-                      script.get('topic', 'Unknown'), 
-                      script['hook'], 
-                      script['fact1'], 
-                      script['fact2'], 
-                      script['fact3'], 
-                      script['fact4'], 
-                      script['payoff'], 
-                      script.get('viral_score', 0.5)))
-            
-            conn.commit()
-            conn.close()
-            
-            flash(f'Added {len(scripts)} scripts successfully!', 'success')
-            return redirect(url_for('dashboard'))
-            
-        except json.JSONDecodeError:
-            flash('Invalid JSON format. Please check your paste.', 'danger')
-        except KeyError as e:
-            flash(f'Missing required field: {e}', 'danger')
-        except Exception as e:
-            flash(f'Error: {str(e)}', 'danger')
-    
+                ''', (session['user_id'], topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score))
+                conn.commit()
+                conn.close()
+
+                flash('Script created successfully!', 'success')
+                return redirect(url_for('dashboard'))
+
+            except Exception as e:
+                flash(f'Error creating script: {str(e)}', 'danger')
+                import traceback
+                traceback.print_exc()
+
+        else:
+            # JSON paste mode (original functionality)
+            scripts_text = request.form.get('scripts_json', '').strip()
+
+            try:
+                # Try to parse JSON
+                scripts = json.loads(scripts_text)
+
+                if not isinstance(scripts, list):
+                    flash('Invalid format. Please paste a JSON array.', 'danger')
+                    return redirect(url_for('manual_scripts'))
+
+                # Save to database
+                conn = get_db()
+                for script in scripts:
+                    conn.execute('''
+                        INSERT INTO scripts (user_id, topic, hook, fact1, fact2, fact3, fact4, payoff, viral_score)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (session['user_id'],
+                          script.get('topic', 'Unknown'),
+                          script['hook'],
+                          script['fact1'],
+                          script['fact2'],
+                          script['fact3'],
+                          script['fact4'],
+                          script['payoff'],
+                          script.get('viral_score', 0.5)))
+
+                conn.commit()
+                conn.close()
+
+                flash(f'Added {len(scripts)} scripts successfully!', 'success')
+                return redirect(url_for('dashboard'))
+
+            except json.JSONDecodeError:
+                flash('Invalid JSON format. Please check your paste.', 'danger')
+            except KeyError as e:
+                flash(f'Missing required field: {e}', 'danger')
+            except Exception as e:
+                flash(f'Error: {str(e)}', 'danger')
+
     return render_template('manual_scripts.html')
 
 @app.route('/prompts')

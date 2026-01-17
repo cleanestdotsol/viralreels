@@ -2,23 +2,119 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Paste Scripts from Grok/Claude</h2>
-    
+    <h2>Manual Script Entry</h2>
+
+    <!-- Mode Toggle -->
     <div class="card mb-4">
-        <div class="card-header bg-info text-white">
-            <h5>📋 How to Use Manual Mode</h5>
+        <div class="card-body">
+            <div class="btn-group w-100" role="group">
+                <button type="button" class="btn btn-outline-primary active" id="form-mode-btn" onclick="switchMode('form')">
+                    ✏️ Simple Form (1 Script)
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="json-mode-btn" onclick="switchMode('json')">
+                    📋 JSON Paste (Batch Import)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIMPLE FORM MODE -->
+    <div id="form-mode" class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5>✏️ Create Single Script</h5>
+            <p class="mb-0">Fill in the fields below to create one script</p>
         </div>
         <div class="card-body">
-            <ol>
-                <li>Go to Grok or Claude (free tier)</li>
-                <li>Ask: "Generate 10 viral Facebook Reels scripts in JSON format following this structure..."</li>
-                <li>Copy the entire JSON output</li>
-                <li>Paste it in the box below</li>
-                <li>Click "Add Scripts"</li>
-            </ol>
-            
-            <h6 class="mt-3">Example Prompt for GLM/Claude:</h6>
-            <pre class="bg-light p-3 small">Generate 10 viral Facebook Reels scripts in this EXACT JSON format.
+            <form method="POST">
+                <input type="hidden" name="mode" value="form">
+
+                <div class="mb-3">
+                    <label for="topic" class="form-label">
+                        <strong>📌 Topic</strong>
+                    </label>
+                    <input type="text" class="form-control" id="topic" name="topic" required
+                           placeholder="e.g., Octopus Intelligence">
+                    <small class="form-text text-muted">The main subject of your video (2-4 words)</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="hook" class="form-label">
+                        <strong>🎣 Hook</strong>
+                    </label>
+                    <input type="text" class="form-control" id="hook" name="hook" required
+                           placeholder="e.g., Octopuses have NINE brains but here's the insane part">
+                    <small class="form-text text-muted">Grab attention immediately (8-15 words)</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="fact1" class="form-label">
+                            <strong>📊 Fact 1</strong>
+                        </label>
+                        <input type="text" class="form-control" id="fact1" name="fact1" required
+                               placeholder="Each arm has its own mini-brain">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="fact2" class="form-label">
+                            <strong>📊 Fact 2</strong>
+                        </label>
+                        <input type="text" class="form-control" id="fact2" name="fact2" required
+                               placeholder="Arms solve puzzles independently">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="fact3" class="form-label">
+                            <strong>📊 Fact 3</strong>
+                        </label>
+                        <input type="text" class="form-control" id="fact3" name="fact3" required
+                               placeholder="They taste with their suckers">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="fact4" class="form-label">
+                            <strong>📊 Fact 4</strong>
+                        </label>
+                        <input type="text" class="form-control" id="fact4" name="fact4" required
+                               placeholder="Remember solutions for months">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="payoff" class="form-label">
+                        <strong>💥 Payoff</strong>
+                    </label>
+                    <input type="text" class="form-control" id="payoff" name="payoff" required
+                           placeholder="9 aliens in one body and we're just okay with that 👽">
+                    <small class="form-text text-muted">Punchline that ties it all together (8-15 words)</small>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100">Create Script</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JSON PASTE MODE -->
+    <div id="json-mode" class="card mb-4" style="display: none;">
+        <div class="card-header bg-info text-white">
+            <h5>📋 Batch Import (JSON Format)</h5>
+            <p class="mb-0">Paste multiple scripts in JSON format from Grok or Claude</p>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h6>How to Use:</h6>
+                <ol>
+                    <li>Go to Grok or Claude (free tier)</li>
+                    <li>Ask: "Generate 10 viral Facebook Reels scripts in JSON format..."</li>
+                    <li>Copy the entire JSON output</li>
+                    <li>Paste it in the box below</li>
+                </ol>
+
+                <details class="mt-3">
+                    <summary class="cursor-pointer"><strong>View Example Prompt & Format</strong></summary>
+                    <pre class="bg-light p-3 small mt-2">Generate 10 viral Facebook Reels scripts in this EXACT JSON format.
 
 **WRITING STYLE:**
 Write like a smart science communicator sharing fascinating facts. Clear, direct, emotionally engaging.
@@ -39,27 +135,55 @@ Return this JSON structure:
 
 Topics: animals, space, ocean, psychology, human body, food science
 Target 10 words per line, max 18 if needed for clarity. Make it mind-blowing!</pre>
-        </div>
-    </div>
-    
-    <div class="card">
-        <div class="card-body">
+                </details>
+            </div>
+
             <form method="POST">
+                <input type="hidden" name="mode" value="json">
+
                 <div class="mb-3">
                     <label for="scripts_json" class="form-label">
                         <strong>Paste JSON Scripts Here:</strong>
                     </label>
-                    <textarea class="form-control font-monospace" id="scripts_json" name="scripts_json" 
+                    <textarea class="form-control font-monospace" id="scripts_json" name="scripts_json"
                               rows="15" required placeholder='[{"topic": "...", "hook": "...", ...}]'></textarea>
                     <small class="form-text text-muted">
                         Must be valid JSON array. Check for quotes and commas!
                     </small>
                 </div>
-                
+
                 <button type="submit" class="btn btn-success btn-lg">Add Scripts to Dashboard</button>
-                <a href="/dashboard" class="btn btn-secondary">Cancel</a>
             </form>
         </div>
     </div>
+
+    <div class="text-center">
+        <a href="/dashboard" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
 </div>
+
+<script>
+function switchMode(mode) {
+    const formMode = document.getElementById('form-mode');
+    const jsonMode = document.getElementById('json-mode');
+    const formBtn = document.getElementById('form-mode-btn');
+    const jsonBtn = document.getElementById('json-mode-btn');
+
+    if (mode === 'form') {
+        formMode.style.display = 'block';
+        jsonMode.style.display = 'none';
+        formBtn.classList.add('active');
+        formBtn.classList.remove('btn-outline-primary');
+        formBtn.classList.add('btn-outline-primary');
+        jsonBtn.classList.remove('active');
+    } else {
+        formMode.style.display = 'none';
+        jsonMode.style.display = 'block';
+        jsonBtn.classList.add('active');
+        jsonBtn.classList.remove('btn-outline-secondary');
+        jsonBtn.classList.add('btn-outline-secondary');
+        formBtn.classList.remove('active');
+    }
+}
+</script>
 {% endblock %}
