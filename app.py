@@ -3864,7 +3864,7 @@ def create_video_ffmpeg(script, output_path, api_keys):
 
         # Build ASS (Advanced SubStation Alpha) file template with proper styling
         # Multiple styles for different sections to maximize engagement
-        # Font sizes calibrated for 800x800 text area within 720x1280 video
+        # Font sizes at 70% to prevent vertical overflow in 720x1280 video
         ass_template = """[Script Info]
 ScriptType: v4.00+
 Collisions: Normal
@@ -3872,9 +3872,9 @@ PlayDepth: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Hook,Arial,36,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
-Style: Fact,Arial,30,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
-Style: Payoff,Arial,33,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Hook,Arial,25,&H000000FF,&H000000FF,&H0000FFFF,&H00000000,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Fact,Arial,21,&H00FFFFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
+Style: Payoff,Arial,23,&H0000FFFF,&H000000FF,&H00000000,&H00FF00FF,1,0,0,0,100,100,0,0,1,3,2,5,50,50,60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -3934,11 +3934,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
                 # Select appropriate style based on section type for maximum engagement
                 if section == 'hook':
-                    style_name = 'Hook'  # RED with YELLOW outline, 36px
+                    style_name = 'Hook'  # RED with YELLOW outline, 25px (70% size)
                 elif section == 'payoff':
-                    style_name = 'Payoff'  # YELLOW with BLACK outline, 33px
+                    style_name = 'Payoff'  # YELLOW with BLACK outline, 23px (70% size)
                 else:
-                    style_name = 'Fact'  # WHITE with BLACK outline, 30px
+                    style_name = 'Fact'  # WHITE with BLACK outline, 21px (70% size)
 
                 # For payoff slide, use same margins as other slides (logo overlay disabled)
                 slide_ass_content = ass_template + f"Dialogue: 0,0:00:00.00,{ass_timestamp(slide_duration)},{style_name},,0,0,0,,{wrapped_text}\n"
