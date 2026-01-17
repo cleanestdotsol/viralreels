@@ -21,7 +21,8 @@
       "Bash(if exist nul del /f nul)",
       "Bash(cmd:*)",
       "Bash(railway status:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(move:*)"
     ]
   }
 }

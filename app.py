@@ -3325,8 +3325,12 @@ def schedule_posts():
         return jsonify({'error': 'Start time required'}), 400
 
     try:
-        # Parse the start time
-        scheduled_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        # Parse the start time (datetime-local input is in user's browser timezone)
+        # We need to handle this as UTC to avoid confusion - the simplest approach is to assume UTC
+        scheduled_time = datetime.fromisoformat(start_time)
+
+        # Store as-is and let database CURRENT_TIMESTAMP handle the comparison
+        # Note: Both times should be in UTC for consistent comparison
 
         conn = get_db()
 
@@ -3336,7 +3340,7 @@ def schedule_posts():
             # Calculate scheduled time for this video
             video_time = scheduled_time + timedelta(hours=i * interval_hours)
 
-            # Create scheduled post
+            # Create scheduled post (store timestamp - interpreted as UTC by database)
             conn.execute('''
                 INSERT INTO scheduled_posts (user_id, video_id, scheduled_time)
                 VALUES (?, ?, ?)
@@ -3828,6 +3832,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # Build video filter - add logo overlay for payoff slide (last slide)
                 import os
                 logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'curiosityflash2.jpg')
+                # Convert to forward slashes for FFmpeg compatibility
+                logo_path = logo_path.replace('\\', '/')
                 has_logo = section == 'payoff' and os.path.exists(logo_path)
 
                 if section_audio and os.path.exists(section_audio):
